@@ -8,21 +8,26 @@ namespace Sichem
 {
 	internal class StructVisitor : BaseVisitor
 	{
-		private static readonly string[] _skipStructs =
+		private readonly ConversionParameters _parameters;
+
+		public ConversionParameters Parameters
 		{
-			"stbi_io_callbacks",
-			"img_comp",
-			"stbi__jpeg",
-			"stbi__resample"
-		};
+			get { return _parameters; }
+		}
 
 		private readonly HashSet<string> _visitedStructs = new HashSet<string>();
 
 		private int fieldPosition;
 
-		public StructVisitor(CXTranslationUnit translationUnit, TextWriter writer)
+		public StructVisitor(ConversionParameters parameters, CXTranslationUnit translationUnit, TextWriter writer)
 			: base(translationUnit, writer)
 		{
+			if (parameters == null)
+			{
+				throw new ArgumentNullException("parameters");
+			}
+
+			_parameters = parameters;
 		}
 
 		private CXChildVisitResult Visit(CXCursor cursor, CXCursor parent, IntPtr data)
@@ -52,7 +57,7 @@ namespace Sichem
 					}
 				}
 
-				if (!_visitedStructs.Contains(structName) && !_skipStructs.Contains(structName))
+				if (!_visitedStructs.Contains(structName) && !Parameters.SkipStructs.Contains(structName))
 				{
 					IndentedWriteLine("private class " + structName);
 					IndentedWriteLine("{");

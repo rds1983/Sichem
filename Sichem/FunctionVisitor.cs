@@ -10,29 +10,26 @@ namespace Sichem
 {
 	internal class FunctionVisitor : BaseVisitor
 	{
-		private static readonly string[] _globalVariablesToSkip =
-		{
-			"stbi__g_failure_reason",
-			"stbi__vertically_flip_on_load"
-		};
+		private readonly ConversionParameters _parameters;
 
-		private static readonly string[] _functionsToSkip =
+		public ConversionParameters Parameters
 		{
-			"stbi__malloc",
-			"stbi_image_free",
-			"stbi_failure_reason",
-			"stbi__err",
-			"stbi_is_hdr_from_memory",
-			"stbi_is_hdr_from_callbacks"
-		};
+			get { return _parameters; }
+		}
 
 		private CXCursor _functionStatement;
 		private CXType _returnType;
 		private string _functionName;
 
-		public FunctionVisitor(CXTranslationUnit translationUnit, TextWriter writer)
+		public FunctionVisitor(ConversionParameters parameters, CXTranslationUnit translationUnit, TextWriter writer)
 			: base(translationUnit, writer)
 		{
+			if (parameters == null)
+			{
+				throw new ArgumentNullException("parameters");
+			}
+
+			_parameters = parameters;
 		}
 
 		private CXChildVisitResult VisitEnums(CXCursor cursor, CXCursor parent, IntPtr data)
@@ -81,7 +78,7 @@ namespace Sichem
 			// look only at function decls
 			if (curKind == CXCursorKind.CXCursor_VarDecl)
 			{
-				if (_globalVariablesToSkip.Contains(spelling))
+				if (Parameters.SkipGlobalVariables.Contains(spelling))
 				{
 					return CXChildVisitResult.CXChildVisit_Continue;
 				}
@@ -124,7 +121,7 @@ namespace Sichem
 
 				_functionName = clang.getCursorSpelling(cursor).ToString();
 
-				if (_functionsToSkip.Contains(_functionName))
+				if (Parameters.SkipFunctions.Contains(_functionName))
 				{
 					return CXChildVisitResult.CXChildVisit_Continue;
 				}

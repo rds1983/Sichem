@@ -4,14 +4,15 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{2F372A46-2B31-49ED-BEAA-B7D6E72CD983}</ProjectGuid>
+    <ProjectGuid>{71352218-91C4-490E-A650-AB17C48D0300}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Sichem</RootNamespace>
     <AssemblyName>Sichem</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <NuGetPackageImportStamp>fbcb01ad</NuGetPackageImportStamp>
+    <NuGetPackageImportStamp>b069ebe4</NuGetPackageImportStamp>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
     <DebugSymbols>true</DebugSymbols>
@@ -38,10 +39,10 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="ClangSharp">
-      <HintPath>..\packages\SealangSharp.3.9.0\lib\net40\ClangSharp.dll</HintPath>
+      <HintPath>..\Sichem-Binaries\SealangSharp\ClangSharp.dll</HintPath>
     </Reference>
     <Reference Include="SealangSharp">
-      <HintPath>..\packages\SealangSharp.3.9.0\lib\net40\SealangSharp.dll</HintPath>
+      <HintPath>..\Sichem-Binaries\SealangSharp\SealangSharp.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -54,6 +55,7 @@
   <ItemGroup>
     <Compile Include="BaseVisitor.cs" />
     <Compile Include="ClangParser.cs" />
+    <Compile Include="ConversionParameters.cs" />
     <Compile Include="CursorInfo.cs" />
     <Compile Include="CursorProcessResult.cs" />
     <Compile Include="ForwardDeclarationVisitor.cs" />
@@ -64,16 +66,16 @@
     <Compile Include="Utility.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <None Include="..\Sichem-Binaries\SealangSharp\x64\libclang.dll">
+      <Link>libclang.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\Sichem-Binaries\SealangSharp\x64\sealang.dll">
+      <Link>sealang.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <Import Project="..\packages\SealangSharp.3.9.0\build\SealangSharp.targets" Condition="Exists('..\packages\SealangSharp.3.9.0\build\SealangSharp.targets')" />
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Enable NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('..\packages\SealangSharp.3.9.0\build\SealangSharp.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\SealangSharp.3.9.0\build\SealangSharp.targets'))" />
-  </Target>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

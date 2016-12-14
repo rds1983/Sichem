@@ -5,7 +5,7 @@ VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sichem.Sample", "Sichem.Sample\Sichem.Sample.csproj", "{637F45BD-1C85-465C-927A-BB44AE684403}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sichem", "Sichem\Sichem.csproj", "{2F372A46-2B31-49ED-BEAA-B7D6E72CD983}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sichem", "Sichem\Sichem.csproj", "{71352218-91C4-490E-A650-AB17C48D0300}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,10 +17,10 @@ Global
 		{637F45BD-1C85-465C-927A-BB44AE684403}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{637F45BD-1C85-465C-927A-BB44AE684403}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{637F45BD-1C85-465C-927A-BB44AE684403}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2F372A46-2B31-49ED-BEAA-B7D6E72CD983}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2F372A46-2B31-49ED-BEAA-B7D6E72CD983}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2F372A46-2B31-49ED-BEAA-B7D6E72CD983}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2F372A46-2B31-49ED-BEAA-B7D6E72CD983}.Release|Any CPU.Build.0 = Release|Any CPU
+		{71352218-91C4-490E-A650-AB17C48D0300}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{71352218-91C4-490E-A650-AB17C48D0300}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{71352218-91C4-490E-A650-AB17C48D0300}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{71352218-91C4-490E-A650-AB17C48D0300}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

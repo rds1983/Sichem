@@ -10,11 +10,16 @@ namespace Sichem
 	{
 		private TextWriter _writer;
 
-		public void Process(string sourcePath, string[] defines, string outputPath)
+		public void Process(ConversionParameters parameters)
 		{
+			if (parameters == null)
+			{
+				throw new ArgumentNullException("parameters");
+			}
+
 			var arr = new List<string>();
 
-			foreach (var d in defines)
+			foreach (var d in parameters.Defines)
 			{
 				arr.Add("-D" + d);
 			}
@@ -24,7 +29,7 @@ namespace Sichem
 
 			CXTranslationUnit tu;
 			var res = clang.parseTranslationUnit2(createIndex,
-				sourcePath,
+				parameters.InputPath,
 				arr.ToArray(),
 				arr.Count,
 				out unsavedFile,
@@ -49,20 +54,33 @@ namespace Sichem
 				throw new Exception(sb.ToString());
 			}
 
-			using (_writer = new StreamWriter(outputPath))
+			using (_writer = new StreamWriter(parameters.OutputPath))
 			{
 				_writer.WriteLine("using System;");
 				_writer.WriteLine();
-				_writer.Write("namespace StbSharp\n{\n\tpublic static partial class Image\n\t{\n");
+
+				if (!string.IsNullOrEmpty(parameters.Namespace))
+				{
+					_writer.Write("namespace {0}\n{{\n\t", parameters.Namespace);
+				}
+
+				_writer.Write("public static {0} class {1}\n\t{{\n",
+						parameters.IsPartial ? "partial" : string.Empty,
+						parameters.Class);
 
 				// Structs
-				var structsVisitor = new StructVisitor(tu, _writer);
+				var structsVisitor = new StructVisitor(parameters, tu, _writer);
 				structsVisitor.Run();
 
-				var functionVisitor = new FunctionVisitor(tu, _writer);
+				var functionVisitor = new FunctionVisitor(parameters, tu, _writer);
 				functionVisitor.Run();
 
-				_writer.Write("\t}\n}\n");
+				_writer.Write("\t}");
+
+				if (!string.IsNullOrEmpty(parameters.Namespace))
+				{
+					_writer.Write("\n}\n");
+				}
 			}
 
 /*			using (_writer = new StreamWriter(outputPath + "2"))
