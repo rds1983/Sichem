@@ -182,6 +182,16 @@ namespace Sichem
 			}
 		}
 
+		private string ReplaceNullWithPointerByte(string expr)
+		{
+			if (expr == "null" || expr == "(null)")
+			{
+				return "Pointer<byte>.Null";
+			}
+
+			return expr;
+		}
+
 		private string InternalProcess(CursorInfo info)
 		{
 			switch (info.Kind)
@@ -446,6 +456,9 @@ namespace Sichem
 						condition.Expression = condition.Expression + " > 0";
 					}
 
+					a.Expression = ReplaceNullWithPointerByte(a.Expression);
+					b.Expression = ReplaceNullWithPointerByte(b.Expression);
+
 					return condition.Expression + "?" + a.Expression + ":" + b.Expression;
 				}
 				case CXCursorKind.CXCursor_MemberRefExpr:
@@ -589,9 +602,9 @@ namespace Sichem
 					{
 						expr = "new " + info.CsType + "(" + expr + ")";
 					}
-					else
+					else if (expr == "0")
 					{
-						expr = "null /*" + expr + "*/";
+						expr = "null";
 					}
 
 					return expr;
