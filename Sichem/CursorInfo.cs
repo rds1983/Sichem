@@ -45,11 +45,6 @@ namespace Sichem
 			get { return _type.IsPointer(); }
 		}
 
-		public bool IsCPointer
-		{
-			get { return _type.kind.IsPointer(); }
-		}
-
 		public bool IsPrimitiveNumericType
 		{
 			get { return _type.kind.IsPrimitiveNumericType(); }

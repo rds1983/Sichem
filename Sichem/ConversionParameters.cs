@@ -1,9 +1,11 @@
-﻿namespace Sichem
+﻿using System.IO;
+
+namespace Sichem
 {
 	public class ConversionParameters
 	{
 		public string InputPath { get; set; }
-		public string OutputPath { get; set; }
+		public TextWriter Output { get; set; }
 		public string[] Defines { get; set; }
 		public string Namespace { get; set; }
 		public string Class { get; set; }

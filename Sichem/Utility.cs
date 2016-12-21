@@ -97,18 +97,19 @@ namespace Sichem
 
 			if (type.kind == CXTypeKind.CXType_Void)
 			{
-				return "object";
+				return "Pointer<byte>";
 			}
 
 			var sb = new StringBuilder();
-			if (type.kind != CXTypeKind.CXType_Record)
+
+			if (!type.IsRecord())
 			{
 				sb.Append("Pointer<");
 			}
 
 			sb.Append(ToCSharpTypeString(type));
 
-			if (type.kind != CXTypeKind.CXType_Record)
+			if (!type.IsRecord())
 			{
 				sb.Append(">");
 			}
@@ -330,17 +331,41 @@ namespace Sichem
 			return result.Value;
 		}
 
+
+		public static bool IsBinaryOperator(this BinaryOperatorKind op)
+		{
+			return op == BinaryOperatorKind.And || op == BinaryOperatorKind.Or;
+		}
+
 		public static bool IsLogicalBinaryOperator(this BinaryOperatorKind op)
 		{
 			return op == BinaryOperatorKind.LAnd || op == BinaryOperatorKind.LOr;
 		}
 
-		public static bool IsBooleanOperator(this BinaryOperatorKind op)
+		public static bool IsLogicalBooleanOperator(this BinaryOperatorKind op)
 		{
 			return op == BinaryOperatorKind.LAnd || op == BinaryOperatorKind.LOr ||
 				op == BinaryOperatorKind.EQ || op == BinaryOperatorKind.GE ||
+				op == BinaryOperatorKind.GT || op == BinaryOperatorKind.LT;
+		}
+
+		public static bool IsBooleanOperator(this BinaryOperatorKind op)
+		{
+			return op == BinaryOperatorKind.LAnd || op == BinaryOperatorKind.LOr ||
+				op == BinaryOperatorKind.EQ || op == BinaryOperatorKind.NE ||
+				op == BinaryOperatorKind.GE || op == BinaryOperatorKind.LE ||
 				op == BinaryOperatorKind.GT || op == BinaryOperatorKind.LT ||
 				op == BinaryOperatorKind.And || op == BinaryOperatorKind.Or;
+		}
+
+		public static bool IsAssign(this BinaryOperatorKind op)
+		{
+			return op == BinaryOperatorKind.AddAssign || op == BinaryOperatorKind.AndAssign ||
+			       op == BinaryOperatorKind.Assign || op == BinaryOperatorKind.DivAssign ||
+			       op == BinaryOperatorKind.MulAssign || op == BinaryOperatorKind.OrAssign ||
+			       op == BinaryOperatorKind.RemAssign || op == BinaryOperatorKind.ShlAssign ||
+			       op == BinaryOperatorKind.ShrAssign || op == BinaryOperatorKind.SubAssign ||
+			       op == BinaryOperatorKind.XorAssign;
 		}
 
 		internal static string GetExpression(this CursorProcessResult cursorProcessResult)
@@ -380,8 +405,7 @@ namespace Sichem
 
 		public static bool IsPointer(this CXType type)
 		{
-			return type.kind.IsPointer() &&
-			       (clang.getPointeeType(type).kind != CXTypeKind.CXType_Void);
+			return type.kind.IsPointer();
 		}
 
 		public static bool IsArray(this CXType type)

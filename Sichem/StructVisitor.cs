@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using ClangSharp;
+using SealangSharp;
 
 namespace Sichem
 {
@@ -59,7 +60,7 @@ namespace Sichem
 
 				if (!_visitedStructs.Contains(structName) && !Parameters.SkipStructs.Contains(structName))
 				{
-					IndentedWriteLine("private class " + structName);
+					IndentedWriteLine("public class " + structName);
 					IndentedWriteLine("{");
 
 					_indentLevel++;
@@ -94,6 +95,17 @@ namespace Sichem
 				fieldName = fieldName.FixSpecialWords();
 
 				_writer.Write(fieldName);
+
+				if (canonical.IsPointer())
+				{
+					// Retrieve size
+					var sizeChild = Utility.FindChild(cursor, CXCursorKind.CXCursor_IntegerLiteral);
+					if (sizeChild != null)
+					{
+						_writer.Write(" = new " + canonical.ToCSharpTypeString() + "(" + sealang.cursor_getLiteralString(sizeChild.Value) + ")");
+					}
+				}
+
 				_writer.Write(";\n");
 
 				return CXChildVisitResult.CXChildVisit_Continue;

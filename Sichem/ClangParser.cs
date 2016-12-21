@@ -8,7 +8,7 @@ namespace Sichem
 {
 	public class ClangParser
 	{
-		private TextWriter _writer;
+		private TextWriter _output;
 
 		public void Process(ConversionParameters parameters)
 		{
@@ -54,33 +54,32 @@ namespace Sichem
 				throw new Exception(sb.ToString());
 			}
 
-			using (_writer = new StreamWriter(parameters.OutputPath))
+			_output = parameters.Output;
+			_output.WriteLine("using System;");
+			_output.WriteLine("using Sichem;");
+			_output.WriteLine();
+
+			if (!string.IsNullOrEmpty(parameters.Namespace))
 			{
-				_writer.WriteLine("using System;");
-				_writer.WriteLine();
+				_output.Write("namespace {0}\n{{\n\t", parameters.Namespace);
+			}
 
-				if (!string.IsNullOrEmpty(parameters.Namespace))
-				{
-					_writer.Write("namespace {0}\n{{\n\t", parameters.Namespace);
-				}
+			_output.Write("public static {0} class {1}\n\t{{\n",
+				parameters.IsPartial ? "partial" : string.Empty,
+				parameters.Class);
 
-				_writer.Write("public static {0} class {1}\n\t{{\n",
-						parameters.IsPartial ? "partial" : string.Empty,
-						parameters.Class);
+			// Structs
+			var structsVisitor = new StructVisitor(parameters, tu, _output);
+			structsVisitor.Run();
 
-				// Structs
-				var structsVisitor = new StructVisitor(parameters, tu, _writer);
-				structsVisitor.Run();
+			var functionVisitor = new FunctionVisitor(parameters, tu, _output);
+			functionVisitor.Run();
 
-				var functionVisitor = new FunctionVisitor(parameters, tu, _writer);
-				functionVisitor.Run();
+			_output.Write("\t}");
 
-				_writer.Write("\t}");
-
-				if (!string.IsNullOrEmpty(parameters.Namespace))
-				{
-					_writer.Write("\n}\n");
-				}
+			if (!string.IsNullOrEmpty(parameters.Namespace))
+			{
+				_output.Write("\n}\n");
 			}
 
 /*			using (_writer = new StreamWriter(outputPath + "2"))
@@ -122,7 +121,7 @@ namespace Sichem
 			var curLevel = (uint) data;
 			var nextLevel = curLevel + 1;
 
-			_writer.WriteLine("{0}- {1} {2})\n", curLevel, getCursorKindName(cursorKind), getCursorSpelling(cursor));
+			_output.WriteLine("{0}- {1} {2})\n", curLevel, getCursorKindName(cursorKind), getCursorSpelling(cursor));
 
 			clang.visitChildren(cursor,
 				Visit,
