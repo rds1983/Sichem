@@ -127,15 +127,15 @@ namespace Sichem
 		{
 			if (_isValue)
 			{
+				unsafe
+				{
+					fixed (byte* p = &_data[_position + index*_elementSize])
+					{
+						var result = (T)Marshal.PtrToStructure(new IntPtr(p), typeof(T));
 
-				var temp = new byte[_elementSize];
-				Array.Copy(_data, _position + index*_elementSize, temp, 0, _elementSize);
-
-				var handle = GCHandle.Alloc(temp, GCHandleType.Pinned);
-				var result = (T) Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof (T));
-				handle.Free();
-
-				return result;
+						return result;
+					}
+				}
 			}
 
 			return _data2[_position + index];
@@ -145,13 +145,14 @@ namespace Sichem
 		{
 			if (_isValue)
 			{
-				var temp = new byte[_elementSize];
-				var handle = GCHandle.Alloc(temp, GCHandleType.Pinned);
-				Marshal.StructureToPtr(value, handle.AddrOfPinnedObject(), false);
-				handle.Free();
-
-				Array.Copy(temp, 0, _data, _position + index*_elementSize, _elementSize);
-				return;
+				unsafe
+				{
+					fixed (byte* p = &_data[_position + index*_elementSize])
+					{
+						Marshal.StructureToPtr(value, new IntPtr(p), false);
+					}
+					return;
+				}
 			}
 
 			_data2[_position + index] = value;
@@ -216,6 +217,7 @@ namespace Sichem
 				var oldData = _data;
 				_data = new byte[newSize*_elementSize];
 				Array.Copy(oldData, _data, oldData.Length);
+
 				return;
 			}
 
