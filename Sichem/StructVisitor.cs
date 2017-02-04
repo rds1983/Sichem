@@ -60,11 +60,12 @@ namespace Sichem
 
 				if (!_visitedStructs.Contains(structName) && !Parameters.SkipStructs.Contains(structName))
 				{
-					IndentedWriteLine("public class " + structName);
+					IndentedWriteLine("public unsafe class " + structName);
 					IndentedWriteLine("{");
 
 					_indentLevel++;
 					clang.visitChildren(cursor, Visit, new CXClientData(IntPtr.Zero));
+
 					_indentLevel--;
 
 					IndentedWriteLine("}");
@@ -99,11 +100,14 @@ namespace Sichem
 				if (canonical.IsPointer())
 				{
 					// Retrieve size
-					var sizeChild = Utility.FindChild(cursor, CXCursorKind.CXCursor_IntegerLiteral);
+					var sizeChild = cursor.FindChild(CXCursorKind.CXCursor_IntegerLiteral);
 					if (sizeChild != null)
 					{
-						_writer.Write(" = new " + canonical.ToCSharpTypeString() + "(" + sealang.cursor_getLiteralString(sizeChild.Value) + ")");
+						_writer.Write(" = new ArrayPointer<" + canonical.GetPointeeType().ToCSharpTypeString() + ">(" + sealang.cursor_getLiteralString(sizeChild.Value) + ")");
 					}
+				} else if (canonical.IsRecord())
+				{
+					_writer.Write(" = new " + canonical.ToCSharpTypeString() + "()");
 				}
 
 				_writer.Write(";\n");

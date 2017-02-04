@@ -64,7 +64,7 @@ namespace Sichem
 				_output.Write("namespace {0}\n{{\n\t", parameters.Namespace);
 			}
 
-			_output.Write("public static {0} class {1}\n\t{{\n",
+			_output.Write("public static unsafe {0} class {1}\n\t{{\n",
 				parameters.IsPartial ? "partial" : string.Empty,
 				parameters.Class);
 
