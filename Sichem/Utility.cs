@@ -97,21 +97,16 @@ namespace Sichem
 
 			if (type.kind == CXTypeKind.CXType_Void)
 			{
-				return "Pointer<byte>";
+				return "void *";
 			}
 
 			var sb = new StringBuilder();
-
-			if (!type.IsRecord())
-			{
-				sb.Append("Pointer<");
-			}
 
 			sb.Append(ToCSharpTypeString(type));
 
 			if (!type.IsRecord())
 			{
-				sb.Append(">");
+				sb.Append("*");
 			}
 
 			return sb.ToString();
