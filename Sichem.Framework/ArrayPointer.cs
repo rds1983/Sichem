@@ -6,14 +6,12 @@ namespace Sichem
 	public unsafe interface Pointer : IDisposable
 	{
 		long Size { get; }
-		void *Pointer { get; }
+		void* Pointer { get; }
 	}
 
-	public unsafe class ArrayPointer<T>: Pointer
+	public unsafe class ArrayPointer<T> : Pointer
 	{
-		private T[] _data;
 		private GCHandle _handle;
-		private readonly long _elementSize;
 		private bool _disposed;
 
 		public GCHandle Handle
@@ -23,29 +21,24 @@ namespace Sichem
 
 		public void* Pointer { get; private set; }
 
-		public T[] Data
-		{
-			get { return _data; }
-		}
+		public T[] Data { get; private set; }
 
 		public T this[long index]
 		{
-			get { return _data[index]; }
-			set { _data[index] = value; }
+			get { return Data[index]; }
+			set { Data[index] = value; }
 		}
 
-		public long Size {
-			get { return _data != null? _data.LongLength * _elementSize:0; }
-		}
+		public long Size { get; private set; }
 
-		public ArrayPointer(long size): this(new T[size])
+		public ArrayPointer(long size)
+			: this(new T[size])
 		{
 		}
 
 		public ArrayPointer(T[] data)
 		{
-			_elementSize = Marshal.SizeOf(typeof (T));
-			_data = data;
+			Data = data;
 
 			Pointer = null;
 			if (data != null)
@@ -53,9 +46,17 @@ namespace Sichem
 				_handle = GCHandle.Alloc(data, GCHandleType.Pinned);
 				var addr = _handle.AddrOfPinnedObject();
 				Pointer = addr.ToPointer();
+				Size = Marshal.SizeOf(typeof (T))*data.LongLength;
+			}
+			else
+			{
+				Size = 0;
 			}
 
-			Operations._allocatedTotal += Size;
+			lock (Operations._lock)
+			{
+				Operations._allocatedTotal += Size;
+			}
 		}
 
 		~ArrayPointer()
@@ -66,6 +67,13 @@ namespace Sichem
 		public void Dispose()
 		{
 			Dispose(true);
+			
+			// This object will be cleaned up by the Dispose method.
+			// Therefore, you should call GC.SupressFinalize to
+			// take this object off the finalization queue
+			// and prevent finalization code for this object
+			// from executing a second time.
+			GC.SuppressFinalize(this);
 		}
 
 		protected virtual void Dispose(bool disposing)
@@ -75,18 +83,17 @@ namespace Sichem
 				return;
 			}
 
-			Operations._allocatedTotal -= Size;
-
-			if (Operations._allocatedTotal < 0)
+			lock (Operations._lock)
 			{
-				var k = 5;
+				Operations._allocatedTotal -= Size;
 			}
 
-			if (_data != null)
+			if (Data != null)
 			{
 				_handle.Free();
 				Pointer = null;
-				_data = null;
+				Data = null;
+				Size = 0;
 			}
 
 			_disposed = true;

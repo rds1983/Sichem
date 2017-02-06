@@ -5,7 +5,8 @@ namespace Sichem
 	public static unsafe class Operations
 	{
 		internal static Dictionary<long, Pointer> _pointers = new Dictionary<long, Pointer>();
-		internal static long _allocatedTotal = 0;
+		internal static long _allocatedTotal;
+		internal static object _lock = new object();
 
 		public static long AllocatedTotal
 		{
@@ -40,7 +41,6 @@ namespace Sichem
 
 			_pointers.Remove((long) pointer.Pointer);
 			pointer.Dispose();
-
 		}
 
 		public static void* Realloc(void* a, long newSize)
@@ -61,7 +61,7 @@ namespace Sichem
 			var result = Malloc(newSize);
 			Memcpy(result, a, pointer.Size);
 
-			_pointers.Remove((long)pointer.Pointer);
+			_pointers.Remove((long) pointer.Pointer);
 			pointer.Dispose();
 
 			return result;
