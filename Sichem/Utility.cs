@@ -112,7 +112,7 @@ namespace Sichem
 			return sb.ToString();
 		}
 
-		public static string ToCSharpTypeString(this CXType type)
+		public static string ToCSharpTypeString(this CXType type, bool treatArrayAsPointer = false)
 		{
 			var isConstQualifiedType = clang.isConstQualifiedType(type) != 0;
 			var spelling = string.Empty;
@@ -137,7 +137,15 @@ namespace Sichem
 						: clang.getTypeSpelling(canonical).ToString();
 					break;
 				case CXTypeKind.CXType_ConstantArray:
-					sb.Append(ProcessPointerType(clang.getArrayElementType(type)));
+					var t = clang.getArrayElementType(type);
+					if (treatArrayAsPointer)
+					{
+						sb.Append(ProcessPointerType(t));
+					}
+					else
+					{
+						sb.Append("ArrayPointer<" + t.ToCSharpTypeString() + ">");
+					}
 					break;
 				case CXTypeKind.CXType_Pointer:
 					sb.Append(ProcessPointerType(clang.getPointeeType(type)));

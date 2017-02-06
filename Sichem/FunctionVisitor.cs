@@ -275,7 +275,7 @@ namespace Sichem
 					}
 
 					var tokens = info.Cursor.Tokenize(_translationUnit);
-					return string.Join(" ", tokens);
+					return string.Join(string.Empty, tokens);
 				}
 				case CXCursorKind.CXCursor_DeclRefExpr:
 					return info.Spelling.FixSpecialWords();
@@ -299,8 +299,8 @@ namespace Sichem
 					}
 
 					if (type.IsAssign() &&
-						type != BinaryOperatorKind.ShlAssign &&
-						type != BinaryOperatorKind.ShrAssign)
+					    type != BinaryOperatorKind.ShlAssign &&
+					    type != BinaryOperatorKind.ShrAssign)
 					{
 						// Explicity cast right to left
 						if (!info.Type.IsPointer())
@@ -331,57 +331,13 @@ namespace Sichem
 
 					if (a.Info.IsPointer)
 					{
-/*						if (!a.Info.IsRecord)
-						{
-							switch (type)
-							{
-								case BinaryOperatorKind.EQ:
-									return a.Expression + ".Equals(" + b.Expression + ")";
-								case BinaryOperatorKind.AddAssign:
-									return a.Expression + ".PlusAssign(" + b.Expression + ")";
-								case BinaryOperatorKind.SubAssign:
-									return a.Expression + ".MinusAssign(" + b.Expression + ")";
-								case BinaryOperatorKind.Add:
-									return a.Expression + ".Plus(" + b.Expression + ")";
-								case BinaryOperatorKind.Sub:
-									return a.Expression + ".Minus(" + b.Expression + ")";
-								case BinaryOperatorKind.LT:
-									return a.Expression + ".Lesser(" + b.Expression + ")";
-								case BinaryOperatorKind.LE:
-									return a.Expression + ".LesserEqual(" + b.Expression + ")";
-								case BinaryOperatorKind.GT:
-									return a.Expression + ".Greater(" + b.Expression + ")";
-								case BinaryOperatorKind.GE:
-									return a.Expression + ".GreaterEqual(" + b.Expression + ")";
-							}
-
-							if (b.Expression.Contains("null"))
-							{
-								switch (type)
-								{
-									case BinaryOperatorKind.EQ:
-										return a.Expression + ".IsNull";
-									case BinaryOperatorKind.NE:
-										return "!" + a.Expression + ".IsNull";
-								}
-							}
-						}
-						else
-						{
-							switch (type)
-							{
-								case BinaryOperatorKind.Add:
-									return a.Expression + "[" + b.Expression + "]";
-							}
-						}*/
-
 						if (a.Info.IsRecord)
 						{
 							switch (type)
 							{
 								case BinaryOperatorKind.Add:
 									return a.Expression + "[" + b.Expression + "]";
-							}				
+							}
 						}
 					}
 
@@ -546,7 +502,7 @@ namespace Sichem
 					executionExpr = executionExpr.EnsureStatementFinished();
 
 					return "for (" + start.GetExpression() + "; " + condition.GetExpression() + "; " + it.GetExpression() + ") {" +
-						   executionExpr + "}";
+					       executionExpr + "}";
 				}
 
 				case CXCursorKind.CXCursor_CaseStmt:
@@ -630,7 +586,8 @@ namespace Sichem
 						if (condition.Info.Kind == CXCursorKind.CXCursor_ParenExpr)
 						{
 							gz = false;
-						} else if (condition.Info.Kind == CXCursorKind.CXCursor_BinaryOperator)
+						}
+						else if (condition.Info.Kind == CXCursorKind.CXCursor_BinaryOperator)
 						{
 							var op = sealang.cursor_getBinaryOpcode(condition.Info.Cursor);
 
@@ -685,14 +642,15 @@ namespace Sichem
 
 						if (info.Type.IsArray())
 						{
+							var t = info.Type.GetPointeeType().ToCSharpTypeString();
 							if (rvalue.Info.Kind == CXCursorKind.CXCursor_TypeRef ||
 							    rvalue.Info.Kind == CXCursorKind.CXCursor_IntegerLiteral)
 							{
-								rvalue.Expression = "ArrayPointer.Allocate" + info.Type.GetPointeeType().ToCSharpTypeString() + "(" + info.Type.GetArraySize() + ")";
+								rvalue.Expression = "new ArrayPointer<" + t + ">(" + info.Type.GetArraySize() + ")";
 							}
 							else if (rvalue.Info.Kind == CXCursorKind.CXCursor_BinaryOperator)
 							{
-								rvalue.Expression = "ArrayPointer.Allocate" + info.Type.GetPointeeType().ToCSharpTypeString() + "(" + rvalue.Expression + ")";
+								rvalue.Expression = "new ArrayPointer<" + t + ">(" + rvalue.Expression + ")";
 							}
 						}
 					}
@@ -714,19 +672,19 @@ namespace Sichem
 						}
 						else
 						{
+							var t = info.Type.GetPointeeType().ToCSharpTypeString();
 							if (rvalue.Info.Kind == CXCursorKind.CXCursor_InitListExpr)
 							{
-								rvalue.Expression = "ArrayPointer.Allocate" + info.Type.GetPointeeType().ToCSharpTypeString() + "( new " + info.Type.GetPointeeType().ToCSharpTypeString() + "[] " + rvalue.Expression + ")";
+								rvalue.Expression = "new ArrayPointer<" + t + ">( new " +
+								                    info.Type.GetPointeeType().ToCSharpTypeString() + "[] " + rvalue.Expression + ")";
 							}
-
 
 							if (info.IsPointer && !info.IsArray &&
 							    rvalue.Info.IsArray && rvalue.Info.Type.GetPointeeType().kind.IsPrimitiveNumericType() &&
 							    rvalue.Info.Kind != CXCursorKind.CXCursor_StringLiteral)
 							{
-								rvalue.Expression = "((" + info.Type.GetPointeeType().ToCSharpTypeString() + "*)" + rvalue.Expression + ")";
+								rvalue.Expression = "((" + info.Type.GetPointeeType().ToCSharpTypeString() + "*)" + rvalue.Expression + ".Pointer)";
 							}
-
 							expr += " = " + rvalue.Expression;
 						}
 					}
@@ -840,7 +798,7 @@ namespace Sichem
 					if (expr == "0")
 					{
 						expr = "null";
-					} 
+					}
 
 					return expr;
 				}
@@ -856,14 +814,19 @@ namespace Sichem
 					}
 
 					var expr = ProcessPossibleChildByIndex(info.Cursor, size - 1);
-
-
-
-					if (info.IsPointer && info.CsType != expr.Info.CsType &&
-						(info.Type.GetPointeeType().kind.IsPrimitiveNumericType() || info.CsType == "void *") && 
-						expr.Info.Kind != CXCursorKind.CXCursor_StringLiteral)
+					if (info.IsPointer && !info.CsType.Contains("ArrayPointer") && info.CsType != expr.Info.CsType &&
+					    (info.Type.GetPointeeType().kind.IsPrimitiveNumericType() || 
+						(expr.Info.Kind == CXCursorKind.CXCursor_IntegerLiteral && info.CsType == "void *")) &&
+					    expr.Info.Kind != CXCursorKind.CXCursor_StringLiteral)
 					{
-						expr.Expression = "((" + info.CsType + ")" + expr.Expression + ")";
+						if (expr.Info.IsArray)
+						{
+							expr.Expression = "((" + info.CsType + ")" + expr.Expression + ".Pointer)";
+						}
+						else
+						{
+							expr.Expression = "((" + info.CsType + ")" + expr.Expression + ")";
+						}
 					}
 
 					return expr.Expression;
@@ -954,7 +917,7 @@ namespace Sichem
 			var spelling = clang.getCursorSpelling(paramCursor).ToString();
 
 			var name = spelling.FixSpecialWords();
-			var typeName = type.ToCSharpTypeString();
+			var typeName = type.ToCSharpTypeString(true);
 
 			_writer.Write(typeName);
 			_writer.Write(" ");
@@ -970,7 +933,8 @@ namespace Sichem
 		public override void Run()
 		{
 			clang.visitChildren(clang.getTranslationUnitCursor(_translationUnit), VisitEnums, new CXClientData(IntPtr.Zero));
-			clang.visitChildren(clang.getTranslationUnitCursor(_translationUnit), VisitGlobalVariables, new CXClientData(IntPtr.Zero));
+			clang.visitChildren(clang.getTranslationUnitCursor(_translationUnit), VisitGlobalVariables,
+				new CXClientData(IntPtr.Zero));
 			clang.visitChildren(clang.getTranslationUnitCursor(_translationUnit), VisitFunctions, new CXClientData(IntPtr.Zero));
 		}
 	}

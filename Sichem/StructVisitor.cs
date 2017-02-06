@@ -65,6 +65,7 @@ namespace Sichem
 
 					_indentLevel++;
 					clang.visitChildren(cursor, Visit, new CXClientData(IntPtr.Zero));
+
 					_indentLevel--;
 
 					IndentedWriteLine("}");
@@ -102,8 +103,11 @@ namespace Sichem
 					var sizeChild = cursor.FindChild(CXCursorKind.CXCursor_IntegerLiteral);
 					if (sizeChild != null)
 					{
-						_writer.Write(" = ArrayPointer.Allocate" + canonical.GetPointeeType().ToCSharpTypeString() + "(" + sealang.cursor_getLiteralString(sizeChild.Value) + ")");
+						_writer.Write(" = new ArrayPointer<" + canonical.GetPointeeType().ToCSharpTypeString() + ">(" + sealang.cursor_getLiteralString(sizeChild.Value) + ")");
 					}
+				} else if (canonical.IsRecord())
+				{
+					_writer.Write(" = new " + canonical.ToCSharpTypeString() + "()");
 				}
 
 				_writer.Write(";\n");
