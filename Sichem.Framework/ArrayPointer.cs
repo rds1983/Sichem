@@ -46,7 +46,7 @@ namespace Sichem
 				_handle = GCHandle.Alloc(data, GCHandleType.Pinned);
 				var addr = _handle.AddrOfPinnedObject();
 				Pointer = addr.ToPointer();
-				Size = Marshal.SizeOf(typeof (T))*data.LongLength;
+				Size = Marshal.SizeOf(typeof (T))*data.Length;
 			}
 			else
 			{
