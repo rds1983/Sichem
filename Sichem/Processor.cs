@@ -8,7 +8,7 @@ using SealangSharp;
 
 namespace Sichem
 {
-	internal class FunctionVisitor : BaseVisitor
+	internal class Processor : BaseVisitor
 	{
 		private readonly ConversionParameters _parameters;
 
@@ -20,8 +20,9 @@ namespace Sichem
 		private CXCursor _functionStatement;
 		private CXType _returnType;
 		private string _functionName;
+		private readonly HashSet<string> _visitedStructs = new HashSet<string>();
 
-		public FunctionVisitor(ConversionParameters parameters, CXTranslationUnit translationUnit, TextWriter writer)
+		public Processor(ConversionParameters parameters, CXTranslationUnit translationUnit, TextWriter writer)
 			: base(translationUnit, writer)
 		{
 			if (parameters == null)
@@ -30,6 +31,75 @@ namespace Sichem
 			}
 
 			_parameters = parameters;
+		}
+
+		private CXChildVisitResult VisitStructs(CXCursor cursor, CXCursor parent, IntPtr data)
+		{
+			if (cursor.IsInSystemHeader())
+			{
+				return CXChildVisitResult.CXChildVisit_Continue;
+			}
+
+			var curKind = clang.getCursorKind(cursor);
+			switch (curKind)
+			{
+				case CXCursorKind.CXCursor_StructDecl:
+					var structName = clang.getCursorSpelling(cursor).ToString();
+
+					// struct names can be empty, and so we visit its sibling to find the name
+					if (string.IsNullOrEmpty(structName))
+					{
+						var forwardDeclaringVisitor = new ForwardDeclarationVisitor(cursor);
+						clang.visitChildren(clang.getCursorSemanticParent(cursor), forwardDeclaringVisitor.Visit,
+							new CXClientData(IntPtr.Zero));
+						structName = clang.getCursorSpelling(forwardDeclaringVisitor.ForwardDeclarationCursor).ToString();
+
+						if (string.IsNullOrEmpty(structName))
+						{
+							structName = "_";
+						}
+					}
+
+					if (!_visitedStructs.Contains(structName) && !Parameters.SkipStructs.Contains(structName))
+					{
+						Logger.Info("Processing struct {0}", structName);
+
+
+						IndentedWriteLine("public unsafe class " + structName);
+						IndentedWriteLine("{");
+
+						_indentLevel++;
+						clang.visitChildren(cursor, VisitStructs, new CXClientData(IntPtr.Zero));
+
+						_indentLevel--;
+
+						IndentedWriteLine("}");
+						_writer.WriteLine();
+
+						_visitedStructs.Add(structName);
+					}
+
+					return CXChildVisitResult.CXChildVisit_Continue;
+				case CXCursorKind.CXCursor_FieldDecl:
+					var fieldName = clang.getCursorSpelling(cursor).ToString().FixSpecialWords();
+					var expr = Process(cursor);
+					var result = "public " + expr.Info.CsType + " " + fieldName;
+
+					if (expr.Info.IsPointer && !string.IsNullOrEmpty(expr.Expression))
+					{
+						result += " = new " + expr.Info.CsType + expr.Expression.Parentize();
+					} else if (expr.Info.IsRecord)
+					{
+						result += " = new " + expr.Info.CsType + "()";
+					}
+
+					result += ";";
+					IndentedWriteLine(result);
+
+					return CXChildVisitResult.CXChildVisit_Continue;
+			}
+
+			return CXChildVisitResult.CXChildVisit_Recurse;
 		}
 
 		private CXChildVisitResult VisitEnums(CXCursor cursor, CXCursor parent, IntPtr data)
@@ -45,7 +115,6 @@ namespace Sichem
 			{
 				var i = 0;
 
-				var count = cursor.GetChildrenCount();
 				cursor.VisitWithAction(c =>
 				{
 					var name = clang.getCursorSpelling(c).ToString();
@@ -171,8 +240,14 @@ namespace Sichem
 			if (info.Kind == CXCursorKind.CXCursor_UnaryOperator)
 			{
 				var child = ProcessChildByIndex(info.Cursor, 0);
+				var type = sealang.cursor_getUnaryOpcode(info.Cursor);
 				if (child.Info.IsPointer)
 				{
+					if (type == UnaryOperatorKind.LNot)
+					{
+						crp.Expression = child.Expression + "== null";
+					}
+
 					return;
 				}
 
@@ -189,7 +264,6 @@ namespace Sichem
 					}
 				}
 
-				var type = sealang.cursor_getUnaryOpcode(info.Cursor);
 				if (type == UnaryOperatorKind.LNot)
 				{
 					var sub = ProcessChildByIndex(crp.Info.Cursor, 0);
@@ -201,12 +275,12 @@ namespace Sichem
 
 			if (info.Type.kind.IsPrimitiveNumericType())
 			{
-				crp.Expression = "(" + crp.Expression + ") != 0";
+				crp.Expression = crp.Expression.Parentize() + " != 0";
 			}
 
 			if (info.Type.IsPointer())
 			{
-				crp.Expression = "(" + crp.Expression + ") != null";
+				crp.Expression = crp.Expression.Parentize()+ " != null";
 			}
 		}
 
@@ -294,8 +368,8 @@ namespace Sichem
 
 					if (type.IsLogicalBooleanOperator())
 					{
-						a.Expression = "(" + a.Expression + ")";
-						b.Expression = "(" + b.Expression + ")";
+						a.Expression = a.Expression.Parentize();
+						b.Expression = b.Expression.Parentize();
 					}
 
 					if (type.IsAssign() &&
@@ -322,10 +396,10 @@ namespace Sichem
 							}
 							else
 							{
-								b.Expression = "(" + b.Expression + ")";
+								b.Expression = b.Expression.Parentize();
 							}
 
-							b.Expression = "(" + info.CsType + ")" + b.Expression;
+							b.Expression = b.Expression.ApplyCast(info.CsType);
 						}
 					}
 
@@ -382,7 +456,7 @@ namespace Sichem
 
 						if (!argExpr.Info.IsPointer)
 						{
-							argExpr.Expression = "(" + argExpr.Info.CsType + ")(" + argExpr.Expression + ")";
+							argExpr.Expression = argExpr.Expression.ApplyCast(argExpr.Info.CsType);
 						}
 
 						args.Add(argExpr.Expression);
@@ -413,15 +487,8 @@ namespace Sichem
 							{
 								ret = "(" + ret + "?1:0)";
 							}
-							else
-							{
-								ret = "(" + ret + ")";
-							}
 
-							ret = "(" + _returnType.ToCSharpTypeString() + ")" + ret;
-						}
-						else
-						{
+							return "return " + ret.ApplyCast(_returnType.ToCSharpTypeString());
 						}
 					}
 
@@ -602,7 +669,7 @@ namespace Sichem
 
 						if (gz)
 						{
-							condition.Expression = "(" + condition.Expression + ") > 0";
+							condition.Expression = condition.Expression.Parentize() + " != 0";
 						}
 					}
 
@@ -668,7 +735,9 @@ namespace Sichem
 									rvalue.Expression = rvalue.Expression + "?1:0";
 								}
 							}
-							expr += " = (" + info.CsType + ")(" + rvalue.Expression + ")";
+
+							expr += " = ";
+							expr += rvalue.Expression.ApplyCast(info.CsType);
 						}
 						else
 						{
@@ -748,7 +817,7 @@ namespace Sichem
 
 						if (!exp.Info.IsPointer)
 						{
-							exp.Expression = "(" + exp.Info.CsType + ")" + exp.Expression;
+							exp.Expression = exp.Expression.ApplyCast(exp.Info.CsType);
 						}
 
 						sb.Append(exp.Expression);
@@ -768,13 +837,13 @@ namespace Sichem
 					var expr = ProcessPossibleChildByIndex(info.Cursor, 0);
 					var e = expr.GetExpression();
 
-					if (info.IsPointer || expr.Info.Kind == CXCursorKind.CXCursor_BinaryOperator)
+					if (info.CsType != expr.Info.CsType)
 					{
-						e = "(" + e + ")";
+						e = e.ApplyCast(info.CsType);
 					}
 					else
 					{
-						e = "(" + info.CsType + ")(" + expr.GetExpression() + ")";
+						e = e.Parentize();
 					}
 
 					return e;
@@ -790,9 +859,9 @@ namespace Sichem
 
 					var expr = child.Expression;
 
-					if (info.IsPointer)
+					if (info.CsType != child.Info.CsType)
 					{
-						expr = "(" + info.CsType + ")(" + expr + ")";
+						expr = expr.ApplyCast(info.CsType);
 					}
 
 					if (expr == "0")
@@ -821,11 +890,11 @@ namespace Sichem
 					{
 						if (expr.Info.IsArray)
 						{
-							expr.Expression = "((" + info.CsType + ")" + expr.Expression + ".Pointer)";
+							expr.Expression = "(" + info.CsType.Parentize() + expr.Expression + ".Pointer)";
 						}
 						else
 						{
-							expr.Expression = "((" + info.CsType + ")" + expr.Expression + ")";
+							expr.Expression = expr.Expression.ApplyCast(info.CsType);
 						}
 					}
 
@@ -932,6 +1001,7 @@ namespace Sichem
 
 		public override void Run()
 		{
+			clang.visitChildren(clang.getTranslationUnitCursor(_translationUnit), VisitStructs, new CXClientData(IntPtr.Zero));
 			clang.visitChildren(clang.getTranslationUnitCursor(_translationUnit), VisitEnums, new CXClientData(IntPtr.Zero));
 			clang.visitChildren(clang.getTranslationUnitCursor(_translationUnit), VisitGlobalVariables,
 				new CXClientData(IntPtr.Zero));

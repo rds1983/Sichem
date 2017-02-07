@@ -69,11 +69,8 @@ namespace Sichem
 				parameters.Class);
 
 			// Structs
-			var structsVisitor = new StructVisitor(parameters, tu, _output);
-			structsVisitor.Run();
-
-			var functionVisitor = new FunctionVisitor(parameters, tu, _output);
-			functionVisitor.Run();
+			var processor = new Processor(parameters, tu, _output);
+			processor.Run();
 
 			_output.Write("\t}");
 

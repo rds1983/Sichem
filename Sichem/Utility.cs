@@ -9,7 +9,8 @@ namespace Sichem
 {
 	public static class Utility
 	{
-		private static readonly Stack<Func<CXCursor, CXChildVisitResult>> _visitorActionStack = new Stack<Func<CXCursor, CXChildVisitResult>>();
+		private static readonly Stack<Func<CXCursor, CXChildVisitResult>> _visitorActionStack =
+			new Stack<Func<CXCursor, CXChildVisitResult>>();
 
 		public static bool IsInSystemHeader(this CXCursor cursor)
 		{
@@ -91,7 +92,7 @@ namespace Sichem
 			return type;
 		}
 
-		private static string ProcessPointerType(this CXType type)
+		private static string ProcessPointerType(this CXType type, bool treatArrayAsPointer)
 		{
 			type = type.Desugar();
 
@@ -102,7 +103,7 @@ namespace Sichem
 
 			var sb = new StringBuilder();
 
-			sb.Append(ToCSharpTypeString(type));
+			sb.Append(ToCSharpTypeString(type, treatArrayAsPointer));
 
 			if (!type.IsRecord())
 			{
@@ -140,7 +141,7 @@ namespace Sichem
 					var t = clang.getArrayElementType(type);
 					if (treatArrayAsPointer)
 					{
-						sb.Append(ProcessPointerType(t));
+						sb.Append(ProcessPointerType(t, true));
 					}
 					else
 					{
@@ -148,7 +149,7 @@ namespace Sichem
 					}
 					break;
 				case CXTypeKind.CXType_Pointer:
-					sb.Append(ProcessPointerType(clang.getPointeeType(type)));
+					sb.Append(ProcessPointerType(clang.getPointeeType(type), treatArrayAsPointer));
 					break;
 				default:
 					spelling = clang.getCanonicalType(type).ToPlainTypeString();
@@ -348,17 +349,17 @@ namespace Sichem
 		public static bool IsLogicalBooleanOperator(this BinaryOperatorKind op)
 		{
 			return op == BinaryOperatorKind.LAnd || op == BinaryOperatorKind.LOr ||
-				op == BinaryOperatorKind.EQ || op == BinaryOperatorKind.GE ||
-				op == BinaryOperatorKind.GT || op == BinaryOperatorKind.LT;
+			       op == BinaryOperatorKind.EQ || op == BinaryOperatorKind.GE ||
+			       op == BinaryOperatorKind.GT || op == BinaryOperatorKind.LT;
 		}
 
 		public static bool IsBooleanOperator(this BinaryOperatorKind op)
 		{
 			return op == BinaryOperatorKind.LAnd || op == BinaryOperatorKind.LOr ||
-				op == BinaryOperatorKind.EQ || op == BinaryOperatorKind.NE ||
-				op == BinaryOperatorKind.GE || op == BinaryOperatorKind.LE ||
-				op == BinaryOperatorKind.GT || op == BinaryOperatorKind.LT ||
-				op == BinaryOperatorKind.And || op == BinaryOperatorKind.Or;
+			       op == BinaryOperatorKind.EQ || op == BinaryOperatorKind.NE ||
+			       op == BinaryOperatorKind.GE || op == BinaryOperatorKind.LE ||
+			       op == BinaryOperatorKind.GT || op == BinaryOperatorKind.LT ||
+			       op == BinaryOperatorKind.And || op == BinaryOperatorKind.Or;
 		}
 
 		public static bool IsAssign(this BinaryOperatorKind op)
@@ -439,6 +440,51 @@ namespace Sichem
 			}
 
 			return false;
+		}
+
+		public static string Parentize(this string expr)
+		{
+			if (expr.StartsWith("(") && expr.EndsWith(")"))
+			{
+				var pcount = 1;
+				for (var i = 1; i < expr.Length - 1; ++i)
+				{
+					var c = expr[i];
+
+					if (c == '(')
+					{
+						++pcount;
+					}
+					else if (c == ')')
+					{
+						--pcount;
+					}
+
+					if (pcount == 0)
+					{
+						break;
+					}
+				}
+
+				if (pcount > 0)
+				{
+					return expr;
+				}
+				
+			}
+
+			return "(" + expr + ")";
+		}
+
+		public static string ApplyCast(this string expr, string type)
+		{
+			var ptype = type.Parentize();
+			if (expr.StartsWith(ptype))
+			{
+				return expr;
+			}
+
+			return type.Parentize() + expr.Parentize();
 		}
 	}
 }
