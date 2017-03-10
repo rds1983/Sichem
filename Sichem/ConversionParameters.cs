@@ -13,6 +13,7 @@ namespace Sichem
 		public string[] SkipStructs { get; set; }
 		public string[] SkipGlobalVariables { get; set; }
 		public string[] SkipFunctions { get; set; }
+		public string[] Structs { get; set; }
 
 		public ConversionParameters()
 		{

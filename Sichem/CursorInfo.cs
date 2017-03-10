@@ -9,6 +9,8 @@ namespace Sichem
 		private readonly CXType _type;
 		private readonly string _spelling;
 		private readonly string _csType;
+		private readonly RecordType _recordType;
+		private readonly string _recordName;
 
 		public CXCursor Cursor
 		{
@@ -35,9 +37,14 @@ namespace Sichem
 			get { return _csType; }
 		}
 
-		public bool IsRecord
+		public RecordType RecordType
 		{
-			get { return _type.IsRecord(); }
+			get { return _recordType; }
+		}
+
+		public string RecordName
+		{
+			get { return _recordName; }
 		}
 
 		public bool IsPointer
@@ -62,6 +69,8 @@ namespace Sichem
 			_type = clang.getCursorType(cursor).Desugar();
 			_spelling = clang.getCursorSpelling(cursor).ToString();
 			_csType = _type.ToCSharpTypeString();
+			
+			_type.ResolveRecord(out _recordType, out _recordName);
 		}
 	}
 }

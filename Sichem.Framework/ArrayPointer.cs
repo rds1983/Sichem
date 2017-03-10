@@ -30,6 +30,7 @@ namespace Sichem
 		}
 
 		public long Size { get; private set; }
+		public long ElementSize { get; private set; }
 
 		public ArrayPointer(long size)
 			: this(new T[size])
@@ -46,10 +47,12 @@ namespace Sichem
 				_handle = GCHandle.Alloc(data, GCHandleType.Pinned);
 				var addr = _handle.AddrOfPinnedObject();
 				Pointer = addr.ToPointer();
-				Size = Marshal.SizeOf(typeof (T))*data.Length;
+				ElementSize = Marshal.SizeOf(typeof (T));
+				Size = ElementSize*data.Length;
 			}
 			else
 			{
+				ElementSize = 0;
 				Size = 0;
 			}
 
@@ -62,6 +65,11 @@ namespace Sichem
 		~ArrayPointer()
 		{
 			Dispose(false);
+		}
+
+		public void *GetAddress(long index)
+		{
+			return (byte *)Pointer + index*ElementSize;
 		}
 
 		public void Dispose()

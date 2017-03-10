@@ -7,8 +7,17 @@ using SealangSharp;
 
 namespace Sichem
 {
+	public enum RecordType
+	{
+		None,
+		Struct,
+		Class
+	}
+
 	public static class Utility
 	{
+		public static HashSet<string> Structs = new HashSet<string>();
+
 		private static readonly Stack<Func<CXCursor, CXChildVisitResult>> _visitorActionStack =
 			new Stack<Func<CXCursor, CXChildVisitResult>>();
 
@@ -105,8 +114,15 @@ namespace Sichem
 
 			sb.Append(ToCSharpTypeString(type, treatArrayAsPointer));
 
-			if (!type.IsRecord())
+			RecordType recordType;
+			string recordName;
+			type.ResolveRecord(out recordType, out recordName);
+			if (recordType != RecordType.Class)
 			{
+				if (recordName == "stbi_io_callbacks")
+				{
+					var k = 5;
+				}
 				sb.Append("*");
 			}
 
@@ -165,23 +181,41 @@ namespace Sichem
 			return sb.ToString();
 		}
 
-		public static bool IsRecord(this CXType type)
+		public static void ResolveRecord(this CXType type, out RecordType recordType, out string name)
 		{
-			type = type.Desugar();
-
-			switch (type.kind)
+			recordType = RecordType.None;
+			name = string.Empty;
+			var run = true;
+			while (run)
 			{
-				case CXTypeKind.CXType_Record:
-					return true;
+				type = type.Desugar();
 
-				case CXTypeKind.CXType_IncompleteArray:
-				case CXTypeKind.CXType_ConstantArray:
-					return clang.getArrayElementType(type).IsRecord();
-				case CXTypeKind.CXType_Pointer:
-					return clang.getPointeeType(type).IsRecord();
+				switch (type.kind)
+				{
+					case CXTypeKind.CXType_Record:
+					{
+						name = clang.getTypeSpelling(type).ToString();
+						var isConstQualifiedType = clang.isConstQualifiedType(type) != 0;
+						if (isConstQualifiedType)
+						{
+							name = name.Replace("const ", string.Empty); // ugh
+						}
+						recordType = Structs.Contains(name) ? RecordType.Struct : RecordType.Class;
+						return;
+					}
+
+					case CXTypeKind.CXType_IncompleteArray:
+					case CXTypeKind.CXType_ConstantArray:
+						type = clang.getArrayElementType(type);
+						continue;
+					case CXTypeKind.CXType_Pointer:
+						type = clang.getPointeeType(type);
+						continue;
+					default:
+						run = false;
+						break;
+				}
 			}
-
-			return false;
 		}
 
 		public static CXType GetPointeeType(this CXType type)
@@ -470,7 +504,7 @@ namespace Sichem
 				{
 					return expr;
 				}
-				
+
 			}
 
 			return "(" + expr + ")";

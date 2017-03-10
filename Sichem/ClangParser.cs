@@ -17,6 +17,12 @@ namespace Sichem
 				throw new ArgumentNullException("parameters");
 			}
 
+			Utility.Structs.Clear();
+			foreach (var c in parameters.Structs)
+			{
+				Utility.Structs.Add(c);
+			}
+
 			var arr = new List<string>();
 
 			foreach (var d in parameters.Defines)
@@ -56,6 +62,7 @@ namespace Sichem
 
 			_output = parameters.Output;
 			_output.WriteLine("using System;");
+			_output.WriteLine("using System.Runtime.InteropServices;");
 			_output.WriteLine("using Sichem;");
 			_output.WriteLine();
 

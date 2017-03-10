@@ -21,6 +21,7 @@ namespace Sichem
 		private CXType _returnType;
 		private string _functionName;
 		private readonly HashSet<string> _visitedStructs = new HashSet<string>();
+		private bool _isStruct;
 
 		public Processor(ConversionParameters parameters, CXTranslationUnit translationUnit, TextWriter writer)
 			: base(translationUnit, writer)
@@ -64,8 +65,14 @@ namespace Sichem
 					{
 						Logger.Info("Processing struct {0}", structName);
 
+						_isStruct = Parameters.Structs.Contains(structName);
 
-						IndentedWriteLine("public unsafe class " + structName);
+						if (_isStruct)
+						{
+							IndentedWriteLine("[StructLayout(LayoutKind.Sequential)]");
+						}
+
+						IndentedWriteLine("public unsafe " + (_isStruct ? "struct" : "class") + " " + structName);
 						IndentedWriteLine("{");
 
 						_indentLevel++;
@@ -88,7 +95,8 @@ namespace Sichem
 					if (expr.Info.IsPointer && !string.IsNullOrEmpty(expr.Expression))
 					{
 						result += " = new " + expr.Info.CsType + expr.Expression.Parentize();
-					} else if (expr.Info.IsRecord)
+					}
+					else if (expr.Info.RecordType != RecordType.None)
 					{
 						result += " = new " + expr.Info.CsType + "()";
 					}
@@ -405,7 +413,7 @@ namespace Sichem
 
 					if (a.Info.IsPointer)
 					{
-						if (a.Info.IsRecord)
+						if (a.Info.RecordType == RecordType.Class)
 						{
 							switch (type)
 							{
@@ -427,7 +435,7 @@ namespace Sichem
 					var type = sealang.cursor_getUnaryOpcode(info.Cursor);
 					var str = sealang.cursor_getOperatorString(info.Cursor).ToString();
 
-					if (info.IsRecord && (type == UnaryOperatorKind.AddrOf || type == UnaryOperatorKind.Deref))
+					if (info.RecordType == RecordType.Class && (type == UnaryOperatorKind.AddrOf || type == UnaryOperatorKind.Deref))
 					{
 						str = string.Empty;
 					}
@@ -679,7 +687,13 @@ namespace Sichem
 				{
 					var a = ProcessChildByIndex(info.Cursor, 0);
 
-					var result = a.Expression + "." + info.Spelling.FixSpecialWords();
+					var op = ".";
+					if (a.Info.RecordType != RecordType.Class && a.Info.IsPointer)
+					{
+						op = "->";
+					}
+
+					var result = a.Expression + op + info.Spelling.FixSpecialWords();
 
 					return result;
 				}
@@ -722,7 +736,8 @@ namespace Sichem
 						}
 					}
 
-					var expr = info.CsType + " " + info.Spelling.FixSpecialWords();
+					var name = info.Spelling.FixSpecialWords();
+					var expr = info.CsType + " " + name;
 					if (rvalue != null && !string.IsNullOrEmpty(rvalue.Expression))
 					{
 						if (!info.IsPointer)
@@ -757,7 +772,7 @@ namespace Sichem
 							expr += " = " + rvalue.Expression;
 						}
 					}
-					else if (info.IsRecord && !info.IsPointer)
+					else if (info.RecordType != RecordType.None && !info.IsPointer)
 					{
 						expr += " =  new " + info.CsType + "()";
 					}
