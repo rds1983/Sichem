@@ -31,6 +31,15 @@ namespace Sichem
 			}
 		}
 
+		public static void MemMove(void* a, void* b, long size)
+		{
+			using (var temp = new ArrayPointer<byte>(size))
+			{
+				Memcpy(temp.Pointer, b, size);
+				Memcpy(a, temp.Pointer, size);
+			}
+		}
+
 		public static void Free(void* a)
 		{
 			Pointer pointer;
@@ -61,8 +70,26 @@ namespace Sichem
 			var result = Malloc(newSize);
 			Memcpy(result, a, pointer.Size);
 
-			_pointers.Remove((long) pointer.Pointer);
+			_pointers.Remove((long)pointer.Pointer);
 			pointer.Dispose();
+
+			return result;
+		}
+
+		public static int Memcmp(void* a, void* b, long size)
+		{
+			var result = 0;
+			var ap = (byte*)a;
+			var bp = (byte*)b;
+			for (long i = 0; i < size; ++i)
+			{
+				if (*ap != *bp)
+				{
+					result += 1;
+				}
+				ap++;
+				bp++;
+			}
 
 			return result;
 		}
