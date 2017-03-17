@@ -8,7 +8,6 @@ namespace Sichem
 		private readonly CXCursorKind _kind;
 		private readonly CXType _type;
 		private readonly string _spelling;
-		private readonly string _csType;
 		private readonly RecordType _recordType;
 		private readonly string _recordName;
 
@@ -32,10 +31,7 @@ namespace Sichem
 			get { return _spelling; }
 		}
 
-		public string CsType
-		{
-			get { return _csType; }
-		}
+		public string CsType { get; set; }
 
 		public RecordType RecordType
 		{
@@ -68,7 +64,7 @@ namespace Sichem
 			_kind = clang.getCursorKind(cursor);
 			_type = clang.getCursorType(cursor).Desugar();
 			_spelling = clang.getCursorSpelling(cursor).ToString();
-			_csType = _type.ToCSharpTypeString();
+			CsType = _type.ToCSharpTypeString();
 			
 			_type.ResolveRecord(out _recordType, out _recordName);
 		}

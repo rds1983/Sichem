@@ -10,6 +10,14 @@ namespace Sichem
 {
 	internal class Processor : BaseVisitor
 	{
+		private enum State
+		{
+			Structs,
+			GlobalVariables,
+			Enums,
+			Functions
+		}
+
 		private readonly ConversionParameters _parameters;
 
 		public ConversionParameters Parameters
@@ -17,11 +25,14 @@ namespace Sichem
 			get { return _parameters; }
 		}
 
+
+		private readonly HashSet<string> _globalVariables = new HashSet<string>();
 		private CXCursor _functionStatement;
 		private CXType _returnType;
 		private string _functionName;
 		private readonly HashSet<string> _visitedStructs = new HashSet<string>();
 		private bool _isStruct;
+		private State _state;
 
 		public Processor(ConversionParameters parameters, CXTranslationUnit translationUnit, TextWriter writer)
 			: base(translationUnit, writer)
@@ -90,15 +101,28 @@ namespace Sichem
 				case CXCursorKind.CXCursor_FieldDecl:
 					var fieldName = clang.getCursorSpelling(cursor).ToString().FixSpecialWords();
 					var expr = Process(cursor);
-					var result = "public " + expr.Info.CsType + " " + fieldName;
 
-					if (expr.Info.IsPointer && !string.IsNullOrEmpty(expr.Expression))
+					var result = "public ";
+
+					if (_isStruct && expr.Info.IsArray && expr.Info.Type.GetPointeeType().kind != CXTypeKind.CXType_Record)
 					{
-						result += " = new " + expr.Info.CsType + expr.Expression.Parentize();
+						result += "fixed " + expr.Info.Type.GetPointeeType().ToCSharpTypeString() + " " + fieldName + "[" + expr.Expression + "]";
 					}
-					else if (expr.Info.RecordType != RecordType.None)
+					else
 					{
-						result += " = new " + expr.Info.CsType + "()";
+						result += expr.Info.CsType + " " + fieldName;
+					}
+
+					if (!_isStruct)
+					{
+						if (expr.Info.IsPointer && !string.IsNullOrEmpty(expr.Expression))
+						{
+							result += " = new " + expr.Info.CsType + expr.Expression.Parentize();
+						}
+						else if (expr.Info.RecordType != RecordType.None)
+						{
+							result += " = new " + expr.Info.CsType + "()";
+						}
 					}
 
 					result += ";";
@@ -159,6 +183,8 @@ namespace Sichem
 				{
 					return CXChildVisitResult.CXChildVisit_Continue;
 				}
+
+				_globalVariables.Add(spelling);
 
 				var res = Process(cursor);
 
@@ -723,15 +749,36 @@ namespace Sichem
 
 						if (info.Type.IsArray())
 						{
+							var arrayType = info.Type.GetPointeeType().ToCSharpTypeString();
+							if (_state == State.Functions)
+							{
+								info.CsType = info.Type.ToCSharpTypeString(true);
+							}
+
 							var t = info.Type.GetPointeeType().ToCSharpTypeString();
 							if (rvalue.Info.Kind == CXCursorKind.CXCursor_TypeRef ||
 							    rvalue.Info.Kind == CXCursorKind.CXCursor_IntegerLiteral)
 							{
-								rvalue.Expression = "new ArrayPointer<" + t + ">(" + info.Type.GetArraySize() + ")";
+								if (_state != State.Functions)
+								{
+									rvalue.Expression = "new ArrayPointer<" + t + ">(" + info.Type.GetArraySize() + ")";
+								}
+								else
+								{
+									rvalue.Expression = "stackalloc " + arrayType + "[" + info.Type.GetArraySize() + "]";
+									
+								}
 							}
 							else if (rvalue.Info.Kind == CXCursorKind.CXCursor_BinaryOperator)
 							{
-								rvalue.Expression = "new ArrayPointer<" + t + ">(" + rvalue.Expression + ")";
+								if (_state != State.Functions)
+								{
+									rvalue.Expression = "new ArrayPointer<" + t + ">(" + rvalue.Expression + ")";
+								}
+								else
+								{
+									var k = 5;
+								}
 							}
 						}
 					}
@@ -759,8 +806,29 @@ namespace Sichem
 							var t = info.Type.GetPointeeType().ToCSharpTypeString();
 							if (rvalue.Info.Kind == CXCursorKind.CXCursor_InitListExpr)
 							{
-								rvalue.Expression = "new ArrayPointer<" + t + ">( new " +
-								                    info.Type.GetPointeeType().ToCSharpTypeString() + "[] " + rvalue.Expression + ")";
+								if (_state != State.Functions)
+								{
+									rvalue.Expression = "new ArrayPointer<" + t + ">( new " +
+									                    info.Type.GetPointeeType().ToCSharpTypeString() + "[] " + rvalue.Expression + ")";
+								}
+								else
+								{
+									var arrayType = info.Type.GetPointeeType().ToCSharpTypeString();
+
+									rvalue.Expression = "stackalloc " + arrayType + "[" + info.Type.GetArraySize() + "];\n";
+									var size2 = rvalue.Info.Cursor.GetChildrenCount();
+									for (var i = 0; i < size2; ++i)
+									{
+										var exp = ProcessChildByIndex(rvalue.Info.Cursor, i);
+
+										if (!exp.Info.IsPointer)
+										{
+											exp.Expression = exp.Expression.ApplyCast(exp.Info.CsType);
+										}
+
+										rvalue.Expression += name + "[" + i + "] = " + exp.Expression + ";\n";
+									}
+								}
 							}
 
 							if (info.IsPointer && !info.IsArray &&
@@ -903,11 +971,7 @@ namespace Sichem
 						(expr.Info.Kind == CXCursorKind.CXCursor_IntegerLiteral && info.CsType == "void *")) &&
 					    expr.Info.Kind != CXCursorKind.CXCursor_StringLiteral)
 					{
-						if (expr.Info.IsArray)
-						{
-							expr.Expression = "(" + info.CsType.Parentize() + expr.Expression + ".Pointer)";
-						}
-						else
+						if (!expr.Info.IsArray)
 						{
 							expr.Expression = expr.Expression.ApplyCast(info.CsType);
 						}
@@ -1016,10 +1080,19 @@ namespace Sichem
 
 		public override void Run()
 		{
+			_globalVariables.Clear();
+
+			_state = State.Structs;
 			clang.visitChildren(clang.getTranslationUnitCursor(_translationUnit), VisitStructs, new CXClientData(IntPtr.Zero));
+
+			_state = State.Enums;
 			clang.visitChildren(clang.getTranslationUnitCursor(_translationUnit), VisitEnums, new CXClientData(IntPtr.Zero));
+
+			_state = State.GlobalVariables;
 			clang.visitChildren(clang.getTranslationUnitCursor(_translationUnit), VisitGlobalVariables,
 				new CXClientData(IntPtr.Zero));
+
+			_state = State.Functions;
 			clang.visitChildren(clang.getTranslationUnitCursor(_translationUnit), VisitFunctions, new CXClientData(IntPtr.Zero));
 		}
 	}

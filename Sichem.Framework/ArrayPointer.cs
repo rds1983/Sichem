@@ -3,23 +3,53 @@ using System.Runtime.InteropServices;
 
 namespace Sichem
 {
-	public unsafe interface Pointer : IDisposable
+	public abstract unsafe class Pointer : IDisposable
 	{
-		long Size { get; }
-		void* Pointer { get; }
+		public abstract long Size { get; }
+		public abstract void* Ptr { get; }
+
+		public abstract void Dispose();
+
+		public static implicit operator void*(Pointer ptr)
+		{
+			return ptr.Ptr;
+		}
+
+		public static implicit operator byte*(Pointer ptr)
+		{
+			return (byte *)ptr.Ptr;
+		}
+
+		public static void* operator +(Pointer ptr, long index)
+		{
+			return ptr.GetAddress(index);
+		}
+
+		public static void* operator +(Pointer ptr, ulong index)
+		{
+			return ptr.GetAddress((long)index);
+		}
+
+
+		public abstract void* GetAddress(long index);
 	}
 
 	public unsafe class ArrayPointer<T> : Pointer
 	{
 		private GCHandle _handle;
 		private bool _disposed;
+		private void* _ptr;
+		private long _size;
 
 		public GCHandle Handle
 		{
 			get { return _handle; }
 		}
 
-		public void* Pointer { get; private set; }
+		public override void* Ptr
+		{
+			get { return _ptr; }
+		}
 
 		public T[] Data { get; private set; }
 
@@ -29,7 +59,13 @@ namespace Sichem
 			set { Data[index] = value; }
 		}
 
-		public long Size { get; private set; }
+		public long Count { get; private set; }
+
+		public override long Size
+		{
+			get { return _size; }
+		}
+
 		public long ElementSize { get; private set; }
 
 		public ArrayPointer(long size)
@@ -41,24 +77,26 @@ namespace Sichem
 		{
 			Data = data;
 
-			Pointer = null;
+			_ptr = null;
 			if (data != null)
 			{
 				_handle = GCHandle.Alloc(data, GCHandleType.Pinned);
 				var addr = _handle.AddrOfPinnedObject();
-				Pointer = addr.ToPointer();
+				_ptr = addr.ToPointer();
 				ElementSize = Marshal.SizeOf(typeof (T));
-				Size = ElementSize*data.Length;
+				Count = data.Length;
+				_size = ElementSize*data.Length;
 			}
 			else
 			{
 				ElementSize = 0;
-				Size = 0;
+				Count = 0;
+				_size = 0;
 			}
 
 			lock (Operations._lock)
 			{
-				Operations._allocatedTotal += Size;
+				Operations._allocatedTotal += _size;
 			}
 		}
 
@@ -67,15 +105,15 @@ namespace Sichem
 			Dispose(false);
 		}
 
-		public void *GetAddress(long index)
+		public override void* GetAddress(long index)
 		{
-			return (byte *)Pointer + index*ElementSize;
+			return (byte*) Ptr + index*ElementSize;
 		}
 
-		public void Dispose()
+		public override void Dispose()
 		{
 			Dispose(true);
-			
+
 			// This object will be cleaned up by the Dispose method.
 			// Therefore, you should call GC.SupressFinalize to
 			// take this object off the finalization queue
@@ -99,9 +137,9 @@ namespace Sichem
 			if (Data != null)
 			{
 				_handle.Free();
-				Pointer = null;
+				_ptr = null;
 				Data = null;
-				Size = 0;
+				_size = 0;
 			}
 
 			_disposed = true;

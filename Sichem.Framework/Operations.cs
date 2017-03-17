@@ -16,9 +16,9 @@ namespace Sichem
 		public static void* Malloc(long size)
 		{
 			var result = new ArrayPointer<byte>(size);
-			_pointers[(long) result.Pointer] = result;
+			_pointers[(long) result.Ptr] = result;
 
-			return result.Pointer;
+			return result.Ptr;
 		}
 
 		public static void Memcpy(void* a, void* b, long size)
@@ -35,8 +35,8 @@ namespace Sichem
 		{
 			using (var temp = new ArrayPointer<byte>(size))
 			{
-				Memcpy(temp.Pointer, b, size);
-				Memcpy(a, temp.Pointer, size);
+				Memcpy(temp.Ptr, b, size);
+				Memcpy(a, temp.Ptr, size);
 			}
 		}
 
@@ -48,7 +48,7 @@ namespace Sichem
 				return;
 			}
 
-			_pointers.Remove((long) pointer.Pointer);
+			_pointers.Remove((long) pointer.Ptr);
 			pointer.Dispose();
 		}
 
@@ -70,7 +70,7 @@ namespace Sichem
 			var result = Malloc(newSize);
 			Memcpy(result, a, pointer.Size);
 
-			_pointers.Remove((long)pointer.Pointer);
+			_pointers.Remove((long)pointer.Ptr);
 			pointer.Dispose();
 
 			return result;

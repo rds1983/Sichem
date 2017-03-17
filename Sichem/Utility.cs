@@ -119,10 +119,6 @@ namespace Sichem
 			type.ResolveRecord(out recordType, out recordName);
 			if (recordType != RecordType.Class)
 			{
-				if (recordName == "stbi_io_callbacks")
-				{
-					var k = 5;
-				}
 				sb.Append("*");
 			}
 

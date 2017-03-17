@@ -43,13 +43,21 @@ namespace Sichem
 				0,
 				out tu);
 
+			var numDiagnostics = clang.getNumDiagnostics(tu);
+			for (uint i = 0; i < numDiagnostics; ++i)
+			{
+				var diag = clang.getDiagnostic(tu, i);
+				Logger.Log(clang.getDiagnosticSpelling(diag).ToString());
+				clang.disposeDiagnostic(diag);
+			}
+
 			if (res != CXErrorCode.CXError_Success)
 			{
 				var sb = new StringBuilder();
 
 				sb.AppendLine(res.ToString());
 
-				var numDiagnostics = clang.getNumDiagnostics(tu);
+				numDiagnostics = clang.getNumDiagnostics(tu);
 				for (uint i = 0; i < numDiagnostics; ++i)
 				{
 					var diag = clang.getDiagnostic(tu, i);
