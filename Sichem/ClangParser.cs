@@ -47,7 +47,7 @@ namespace Sichem
 			for (uint i = 0; i < numDiagnostics; ++i)
 			{
 				var diag = clang.getDiagnostic(tu, i);
-				Logger.Log(clang.getDiagnosticSpelling(diag).ToString());
+				Logger.LogLine(clang.getDiagnosticSpelling(diag).ToString());
 				clang.disposeDiagnostic(diag);
 			}
 

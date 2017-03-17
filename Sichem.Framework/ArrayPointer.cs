@@ -20,18 +20,11 @@ namespace Sichem
 			return (byte *)ptr.Ptr;
 		}
 
-		public static void* operator +(Pointer ptr, long index)
+
+		public static implicit operator short*(Pointer ptr)
 		{
-			return ptr.GetAddress(index);
+			return (short*)ptr.Ptr;
 		}
-
-		public static void* operator +(Pointer ptr, ulong index)
-		{
-			return ptr.GetAddress((long)index);
-		}
-
-
-		public abstract void* GetAddress(long index);
 	}
 
 	public unsafe class ArrayPointer<T> : Pointer
@@ -103,11 +96,6 @@ namespace Sichem
 		~ArrayPointer()
 		{
 			Dispose(false);
-		}
-
-		public override void* GetAddress(long index)
-		{
-			return (byte*) Ptr + index*ElementSize;
 		}
 
 		public override void Dispose()

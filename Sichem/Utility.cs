@@ -442,6 +442,25 @@ namespace Sichem
 			return type.kind.IsPointer();
 		}
 
+
+		public static bool IsStruct(this CXType type)
+		{
+			RecordType rt;
+			string name;
+			ResolveRecord(type, out rt, out name);
+
+			return rt == RecordType.Struct;
+		}
+
+		public static bool IsClass(this CXType type)
+		{
+			RecordType rt;
+			string name;
+			ResolveRecord(type, out rt, out name);
+
+			return rt == RecordType.Class;
+		}
+
 		public static bool IsArray(this CXType type)
 		{
 			return type.kind == CXTypeKind.CXType_ConstantArray ||
