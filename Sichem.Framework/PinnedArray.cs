@@ -20,14 +20,13 @@ namespace Sichem
 			return (byte *)ptr.Ptr;
 		}
 
-
 		public static implicit operator short*(Pointer ptr)
 		{
 			return (short*)ptr.Ptr;
 		}
 	}
 
-	public unsafe class ArrayPointer<T> : Pointer
+	public unsafe class PinnedArray<T> : Pointer
 	{
 		private GCHandle _handle;
 		private bool _disposed;
@@ -61,12 +60,12 @@ namespace Sichem
 
 		public long ElementSize { get; private set; }
 
-		public ArrayPointer(long size)
+		public PinnedArray(long size)
 			: this(new T[size])
 		{
 		}
 
-		public ArrayPointer(T[] data)
+		public PinnedArray(T[] data)
 		{
 			Data = data;
 
@@ -93,7 +92,7 @@ namespace Sichem
 			}
 		}
 
-		~ArrayPointer()
+		~PinnedArray()
 		{
 			Dispose(false);
 		}

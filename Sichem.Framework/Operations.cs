@@ -15,7 +15,7 @@ namespace Sichem
 
 		public static void* Malloc(long size)
 		{
-			var result = new ArrayPointer<byte>(size);
+			var result = new PinnedArray<byte>(size);
 			_pointers[(long) result.Ptr] = result;
 
 			return result.Ptr;
@@ -33,7 +33,7 @@ namespace Sichem
 
 		public static void MemMove(void* a, void* b, long size)
 		{
-			using (var temp = new ArrayPointer<byte>(size))
+			using (var temp = new PinnedArray<byte>(size))
 			{
 				Memcpy(temp.Ptr, b, size);
 				Memcpy(a, temp.Ptr, size);
