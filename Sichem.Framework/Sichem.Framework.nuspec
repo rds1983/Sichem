@@ -4,8 +4,8 @@
 		<id>Sichem.Framework</id>
 		<version>$version$</version>
 		<title>Sichem.Framework</title>
-		<authors>Roman Shapiro</authors>
-		<owners>Roman Shapiro</owners>
+		<authors>Abarim Games</authors>
+		<owners>Abarim Games</owners>
 		<projectUrl>https://github.com/rds1983/Sichem</projectUrl>
 		<requireLicenseAcceptance>false</requireLicenseAcceptance>
 		<description>Internal framework of Sichem</description>
