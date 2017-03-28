@@ -761,7 +761,7 @@ namespace Sichem
 							{
 								if (_state != State.Functions || info.Type.GetPointeeType().IsClass())
 								{
-									rvalue.Expression = "new ArrayPointer<" + t + ">(" + info.Type.GetArraySize() + ")";
+									rvalue.Expression = "new PinnedArray<" + t + ">(" + info.Type.GetArraySize() + ")";
 								}
 								else
 								{
@@ -771,7 +771,7 @@ namespace Sichem
 							}
 							else if (rvalue.Info.Kind == CXCursorKind.CXCursor_BinaryOperator)
 							{
-								rvalue.Expression = "new ArrayPointer<" + t + ">(" + rvalue.Expression + ")";
+								rvalue.Expression = "new PinnedArray<" + t + ">(" + rvalue.Expression + ")";
 							}
 						}
 					}
@@ -801,7 +801,7 @@ namespace Sichem
 							{
 								if (_state != State.Functions || info.Type.GetPointeeType().IsClass())
 								{
-									rvalue.Expression = "new ArrayPointer<" + t + ">( new " +
+									rvalue.Expression = "new PinnedArray<" + t + ">( new " +
 									                    info.Type.GetPointeeType().ToCSharpTypeString() + "[] " + rvalue.Expression + ")";
 								}
 								else
@@ -959,7 +959,7 @@ namespace Sichem
 					}
 
 					var expr = ProcessPossibleChildByIndex(info.Cursor, size - 1);
-					if (info.IsPointer && !info.CsType.Contains("ArrayPointer") && 
+					if (info.IsPointer && !info.CsType.Contains("PinnedArray") && 
 						info.CsType != expr.Info.CsType &&
 					    (info.Type.GetPointeeType().IsStruct() ||
 						info.Type.GetPointeeType().kind.IsPrimitiveNumericType() ||

@@ -157,7 +157,7 @@ namespace Sichem
 					}
 					else
 					{
-						sb.Append("ArrayPointer<" + t.ToCSharpTypeString() + ">");
+						sb.Append("PinnedArray<" + t.ToCSharpTypeString() + ">");
 					}
 					break;
 				case CXTypeKind.CXType_Pointer:
