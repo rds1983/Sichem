@@ -14,6 +14,7 @@ namespace Sichem
 		public string[] SkipGlobalVariables { get; set; }
 		public string[] SkipFunctions { get; set; }
 		public string[] Structs { get; set; }
+		public string[] GlobalArrays { get; set; }
 
 		public ConversionParameters()
 		{

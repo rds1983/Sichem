@@ -99,7 +99,6 @@ namespace Sichem
 				_output.Write("\n}\n");
 			}
 
-
 			clang.disposeTranslationUnit(tu);
 			clang.disposeIndex(createIndex);
 		}

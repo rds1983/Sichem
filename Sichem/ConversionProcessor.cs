@@ -26,7 +26,6 @@ namespace Sichem
 			get { return _parameters; }
 		}
 
-
 		private readonly HashSet<string> _globalVariables = new HashSet<string>();
 		private CXCursor _functionStatement;
 		private CXType _returnType;
@@ -85,7 +84,7 @@ namespace Sichem
 							IndentedWriteLine("[StructLayout(LayoutKind.Sequential)]");
 						}
 
-						IndentedWriteLine("public unsafe " + (_isStruct ? "struct" : "class") + " " + structName);
+						IndentedWriteLine("public " + (_isStruct ? "struct" : "class") + " " + structName);
 						IndentedWriteLine("{");
 
 						_indentLevel++;
@@ -560,17 +559,7 @@ namespace Sichem
 
 					if (executionExpr != null && !string.IsNullOrEmpty(executionExpr.Expression))
 					{
-						if (executionExpr.Info.Kind == CXCursorKind.CXCursor_BinaryOperator &&
-						    sealang.cursor_getBinaryOpcode(executionExpr.Info.Cursor) == BinaryOperatorKind.Comma)
-						{
-							var a = ProcessChildByIndex(executionExpr.Info.Cursor, 0);
-							var b = ProcessChildByIndex(executionExpr.Info.Cursor, 1);
-							executionExpr.Expression = "{" + a.Expression + ";" + b.Expression + ";}";
-						}
-						else
-						{
-							executionExpr.Expression = executionExpr.Expression.EnsureStatementFinished();
-						}
+						executionExpr.Expression = executionExpr.Expression.EnsureStatementFinished();
 					}
 
 					var expr = "if (" + conditionExpr.Expression + ") " + executionExpr.Expression;
@@ -622,8 +611,8 @@ namespace Sichem
 					var executionExpr = ReplaceCommas(execution);
 					executionExpr = executionExpr.EnsureStatementFinished();
 
-					return "for (" + start.GetExpression() + "; " + condition.GetExpression() + "; " + it.GetExpression() + ") {" +
-					       executionExpr + "}";
+					return "for (" + start.GetExpression() + "; " + condition.GetExpression() + "; " + it.GetExpression() + ") " +
+					       executionExpr.Curlize();
 				}
 
 				case CXCursorKind.CXCursor_CaseStmt:
@@ -661,7 +650,7 @@ namespace Sichem
 					AppendGZ(expr);
 					var execution = ProcessChildByIndex(info.Cursor, 1);
 
-					return "while (" + expr.Expression + ") { " + execution.Expression.EnsureStatementFinished() + " }";
+					return "while (" + expr.Expression + ") " + execution.Expression.EnsureStatementFinished().Curlize();
 				}
 
 				case CXCursorKind.CXCursor_LabelRef:
@@ -759,6 +748,8 @@ namespace Sichem
 					CursorProcessResult rvalue = null;
 					var size = info.Cursor.GetChildrenCount();
 
+					var name = info.Spelling.FixSpecialWords();
+
 					if (size > 0)
 					{
 						rvalue = ProcessPossibleChildByIndex(info.Cursor, size - 1);
@@ -777,7 +768,14 @@ namespace Sichem
 							{
 								if (_state != State.Functions || info.Type.GetPointeeType().IsClass())
 								{
-									rvalue.Expression = "new PinnedArray<" + t + ">(" + info.Type.GetArraySize() + ")";
+									if (!_parameters.GlobalArrays.Contains(name))
+									{
+										rvalue.Expression = "new PinnedArray<" + t + ">(" + info.Type.GetArraySize() + ")";
+									}
+									else
+									{
+										rvalue.Expression = "new " + t + "[" + info.Type.GetArraySize() + "]";
+									}
 								}
 								else
 								{
@@ -792,8 +790,15 @@ namespace Sichem
 						}
 					}
 
-					var name = info.Spelling.FixSpecialWords();
 					var expr = info.CsType + " " + name;
+
+					if (_state != State.Functions && _parameters.GlobalArrays.Contains(name) && info.Type.IsArray())
+					{
+						var arrayType = info.Type.GetPointeeType().ToCSharpTypeString();
+
+						expr = arrayType + "[] " + name;
+					}
+
 					if (rvalue != null && !string.IsNullOrEmpty(rvalue.Expression))
 					{
 						if (!info.IsPointer)
@@ -817,8 +822,17 @@ namespace Sichem
 							{
 								if (_state != State.Functions || info.Type.GetPointeeType().IsClass())
 								{
-									rvalue.Expression = "new PinnedArray<" + t + ">( new " +
-									                    info.Type.GetPointeeType().ToCSharpTypeString() + "[] " + rvalue.Expression + ")";
+									if (!_parameters.GlobalArrays.Contains(name))
+									{
+										rvalue.Expression = "new PinnedArray<" + t + ">( new " +
+										                    info.Type.GetPointeeType().ToCSharpTypeString() + "[] " + rvalue.Expression + ")";
+									}
+									else
+									{
+										rvalue.Expression = "new " +
+															info.Type.GetPointeeType().ToCSharpTypeString() + "[] " + rvalue.Expression;
+										
+									}
 								}
 								else
 								{
@@ -976,7 +990,8 @@ namespace Sichem
 
 					var expr = ProcessPossibleChildByIndex(info.Cursor, size - 1);
 
-					if (info.IsPointer && !info.CsType.Contains("PinnedArray") && 
+					if (!_parameters.GlobalArrays.Contains(info.Spelling) &&
+						info.IsPointer && !info.CsType.Contains("PinnedArray") && 
 						info.CsType != expr.Info.CsType &&
 					    (info.Type.GetPointeeType().IsStruct() ||
 						info.Type.GetPointeeType().kind.IsPrimitiveNumericType() ||

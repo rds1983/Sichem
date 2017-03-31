@@ -309,6 +309,11 @@ namespace Sichem
 		{
 			var trimmed = statement.Trim();
 
+			if (string.IsNullOrEmpty(trimmed))
+			{
+				return trimmed;
+			}
+
 			if (!trimmed.EndsWith(";") && !trimmed.EndsWith("}"))
 			{
 				return statement + ";";
@@ -529,13 +534,51 @@ namespace Sichem
 
 		public static string ApplyCast(this string expr, string type)
 		{
-			var ptype = type.Parentize();
-			if (expr.StartsWith(ptype))
+			if (string.IsNullOrEmpty(expr))
+			{
+				return expr;
+			}
+
+			var lastCast = string.Empty;
+			if (expr.StartsWith("("))
+			{
+				var lc = new StringBuilder();
+				for (var i = 1; i < expr.Length; ++i)
+				{
+					var c = expr[i];
+
+					if (c == ')')
+					{
+						break;
+					}
+
+					if (c != '(')
+					{
+						lc.Append(c);
+					}
+				}
+
+				lastCast = lc.ToString();
+			}
+
+			if (!string.IsNullOrEmpty(lastCast) && string.CompareOrdinal(type, lastCast) == 0)
 			{
 				return expr;
 			}
 
 			return type.Parentize() + expr.Parentize();
+		}
+
+		public static string Curlize(this string expr)
+		{
+			expr = expr.Trim();
+
+			if (expr.StartsWith("{") && expr.EndsWith("}"))
+			{
+				return expr;
+			}
+
+			return "{" + expr + "}";
 		}
 	}
 }
