@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Xml.XPath;
 using ClangSharp;
 using SealangSharp;
 
 namespace Sichem
 {
-	internal class Processor : BaseVisitor
+	internal class ConversionProcessor : BaseProcessor
 	{
 		private enum State
 		{
@@ -34,7 +35,7 @@ namespace Sichem
 		private bool _isStruct;
 		private State _state;
 
-		public Processor(ConversionParameters parameters, CXTranslationUnit translationUnit, TextWriter writer)
+		public ConversionProcessor(ConversionParameters parameters, CXTranslationUnit translationUnit, TextWriter writer)
 			: base(translationUnit, writer)
 		{
 			if (parameters == null)
@@ -55,6 +56,7 @@ namespace Sichem
 			var curKind = clang.getCursorKind(cursor);
 			switch (curKind)
 			{
+				case CXCursorKind.CXCursor_UnionDecl:
 				case CXCursorKind.CXCursor_StructDecl:
 					var structName = clang.getCursorSpelling(cursor).ToString();
 
@@ -146,6 +148,16 @@ namespace Sichem
 			if (curKind == CXCursorKind.CXCursor_EnumDecl)
 			{
 				var i = 0;
+
+				var n = clang.getCursorSpelling(cursor).ToString();
+				if (string.IsNullOrEmpty(n))
+				{
+					var forwardDeclaringVisitor = new ForwardDeclarationVisitor(cursor);
+					clang.visitChildren(clang.getCursorSemanticParent(cursor), forwardDeclaringVisitor.Visit,
+						new CXClientData(IntPtr.Zero));
+					n = clang.getCursorSpelling(forwardDeclaringVisitor.ForwardDeclarationCursor).ToString();
+				}
+				Logger.Info("Processing enum {0}", n);
 
 				cursor.VisitWithAction(c =>
 				{
@@ -370,6 +382,14 @@ namespace Sichem
 
 				case CXCursorKind.CXCursor_UnaryExpr:
 				{
+					var opCode = sealang.cursor_getUnaryOpcode(info.Cursor);
+
+					if ((int)opCode == 99999)
+					{
+						// sizeof
+						return "sizeof(" + info.CsType + ")";
+					}
+
 					var expr = ProcessPossibleChildByIndex(info.Cursor, 0);
 
 					if (expr != null)
@@ -616,10 +636,6 @@ namespace Sichem
 				case CXCursorKind.CXCursor_DefaultStmt:
 				{
 					var execution = ProcessChildByIndex(info.Cursor, 0);
-					if (string.IsNullOrEmpty(execution.Expression))
-					{
-						return string.Empty;
-					}
 					return "default: " + execution.Expression;
 				}
 
@@ -959,6 +975,7 @@ namespace Sichem
 					}
 
 					var expr = ProcessPossibleChildByIndex(info.Cursor, size - 1);
+
 					if (info.IsPointer && !info.CsType.Contains("PinnedArray") && 
 						info.CsType != expr.Info.CsType &&
 					    (info.Type.GetPointeeType().IsStruct() ||
@@ -1035,7 +1052,7 @@ namespace Sichem
 			var functionName = clang.getCursorSpelling(cursor).ToString();
 			_returnType = clang.getCursorResultType(cursor).Desugar();
 
-			IndentedWrite("public unsafe static " + _returnType.ToCSharpTypeString());
+			IndentedWrite("public static " + _returnType.ToCSharpTypeString());
 
 			_writer.Write(" " + functionName + "(");
 

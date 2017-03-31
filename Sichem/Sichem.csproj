@@ -51,13 +51,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BaseVisitor.cs" />
+    <Compile Include="BaseProcessor.cs" />
     <Compile Include="ClangParser.cs" />
     <Compile Include="ConversionParameters.cs" />
     <Compile Include="CursorInfo.cs" />
     <Compile Include="CursorProcessResult.cs" />
+    <Compile Include="DumpProcessor.cs" />
     <Compile Include="ForwardDeclarationVisitor.cs" />
-    <Compile Include="Processor.cs" />
+    <Compile Include="ConversionProcessor.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Utility.cs" />

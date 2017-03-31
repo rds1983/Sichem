@@ -5,49 +5,16 @@ using SealangSharp;
 
 namespace Sichem
 {
-	public abstract class BaseVisitor
+	public class DumpProcessor: BaseProcessor
 	{
-		protected readonly CXTranslationUnit _translationUnit;
-		protected readonly TextWriter _writer;
-		protected int _indentLevel = 2;
-
-		protected BaseVisitor(CXTranslationUnit translationUnit, TextWriter writer)
+		public DumpProcessor(CXTranslationUnit translationUnit, TextWriter writer)
+			: base(translationUnit, writer)
 		{
-			if (writer == null)
-			{
-				throw new ArgumentNullException("writer");
-			}
-
-			_translationUnit = translationUnit;
-			_writer = writer;
-		}
-
-		public abstract void Run();
-
-		protected void WriteIndent()
-		{
-			for (var i = 0; i < _indentLevel; ++i)
-			{
-				_writer.Write("\t");
-			}
-		}
-
-		protected void IndentedWriteLine(string line)
-		{
-			WriteIndent();
-			_writer.WriteLine(line);
-		}
-
-		protected void IndentedWrite(string data)
-		{
-			WriteIndent();
-			_writer.Write(data);
 		}
 
 		private CXChildVisitResult DumpCursor(CXCursor cursor, CXCursor parent, IntPtr data)
 		{
 			DumpCursor(cursor);
-
 
 			return CXChildVisitResult.CXChildVisit_Continue;
 		}
@@ -64,6 +31,7 @@ namespace Sichem
 
 			switch (cursorKind)
 			{
+				case CXCursorKind.CXCursor_UnaryExpr:
 				case CXCursorKind.CXCursor_UnaryOperator:
 					addition = string.Format("Unary Operator: {0} ({1})",
 						sealang.cursor_getUnaryOpcode(cursor),
@@ -93,6 +61,11 @@ namespace Sichem
 			_indentLevel++;
 			clang.visitChildren(cursor, DumpCursor, new CXClientData(IntPtr.Zero));
 			_indentLevel--;
+		}
+
+		public override void Run()
+		{
+			clang.visitChildren(clang.getTranslationUnitCursor(_translationUnit), DumpCursor, new CXClientData(IntPtr.Zero));
 		}
 	}
 }

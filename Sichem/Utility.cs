@@ -135,8 +135,10 @@ namespace Sichem
 			switch (type.kind)
 			{
 				case CXTypeKind.CXType_Record:
-				case CXTypeKind.CXType_Enum:
 					spelling = clang.getTypeSpelling(type).ToString();
+					break;
+				case CXTypeKind.CXType_Enum:
+					spelling = "int";
 					break;
 				case CXTypeKind.CXType_IncompleteArray:
 					sb.Append(clang.getArrayElementType(type).ToCSharpTypeString());
