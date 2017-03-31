@@ -19,6 +19,12 @@ namespace Sichem
 		public ConversionParameters()
 		{
 			IsPartial = true;
+			Defines = new string[0];
+			SkipStructs = new string[0];
+			SkipGlobalVariables = new string[0];
+			SkipFunctions = new string[0];
+			Structs = new string[0];
+			GlobalArrays = new string[0];
 		}
 	}
 }
