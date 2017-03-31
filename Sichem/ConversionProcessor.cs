@@ -382,23 +382,12 @@ namespace Sichem
 				case CXCursorKind.CXCursor_UnaryExpr:
 				{
 					var opCode = sealang.cursor_getUnaryOpcode(info.Cursor);
-
-					if ((int)opCode == 99999)
-					{
-						// sizeof
-						return "sizeof(" + info.CsType + ")";
-					}
-
 					var expr = ProcessPossibleChildByIndex(info.Cursor, 0);
 
-					if (expr != null)
+					if ((int)opCode == 99999 && expr != null && !string.IsNullOrEmpty(expr.Expression))
 					{
-						if (info.Type.kind == CXTypeKind.CXType_ULongLong)
-						{
-							return expr.Expression + ".Size";
-						}
-
-						return expr.Expression;
+						// sizeof
+						return "sizeof(" + expr.Expression + ")";
 					}
 
 					var tokens = info.Cursor.Tokenize(_translationUnit);
