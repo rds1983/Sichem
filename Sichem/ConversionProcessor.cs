@@ -979,7 +979,7 @@ namespace Sichem
 
 					var expr = ProcessPossibleChildByIndex(info.Cursor, size - 1);
 
-					if (!_parameters.GlobalArrays.Contains(info.Spelling) &&
+/*					if (!_parameters.GlobalArrays.Contains(info.Spelling) &&
 						info.IsPointer && !info.CsType.Contains("PinnedArray") && 
 						info.CsType != expr.Info.CsType &&
 					    (info.Type.GetPointeeType().IsStruct() ||
@@ -988,7 +988,7 @@ namespace Sichem
 					    expr.Info.Kind != CXCursorKind.CXCursor_StringLiteral)
 					{
 						expr.Expression = expr.Expression.ApplyCast(info.CsType).Parentize();
-					}
+					}*/
 
 					return expr.Expression;
 				}
