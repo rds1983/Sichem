@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Xml.XPath;
 using ClangSharp;
 using SealangSharp;
 
@@ -630,7 +629,7 @@ namespace Sichem
 					var expr = ProcessChildByIndex(info.Cursor, 1);
 					AppendGZ(expr);
 
-					return "do { " + execution.Expression.EnsureStatementFinished() + " } while (" + expr.Expression + ")";
+					return "do " + execution.Expression.EnsureStatementFinished() + " while (" + expr.Expression + ")";
 				}
 
 				case CXCursorKind.CXCursor_WhileStmt:
@@ -818,8 +817,7 @@ namespace Sichem
 									}
 									else
 									{
-										rvalue.Expression = "new " +
-															info.Type.GetPointeeType().ToCSharpTypeString() + "[] " + rvalue.Expression;
+										rvalue.Expression = rvalue.Expression;
 										
 									}
 								}
@@ -909,11 +907,6 @@ namespace Sichem
 					for (var i = 0; i < size; ++i)
 					{
 						var exp = ProcessChildByIndex(info.Cursor, i);
-
-						if (!exp.Info.IsPointer)
-						{
-							exp.Expression = exp.Expression.ApplyCast(exp.Info.CsType);
-						}
 
 						sb.Append(exp.Expression);
 

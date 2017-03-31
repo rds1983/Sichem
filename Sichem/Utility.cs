@@ -449,7 +449,6 @@ namespace Sichem
 			return type.kind.IsPointer();
 		}
 
-
 		public static bool IsStruct(this CXType type)
 		{
 			RecordType rt;
@@ -539,34 +538,13 @@ namespace Sichem
 				return expr;
 			}
 
-			var lastCast = string.Empty;
-			if (expr.StartsWith("("))
-			{
-				var lc = new StringBuilder();
-				for (var i = 1; i < expr.Length; ++i)
-				{
-					var c = expr[i];
-
-					if (c == ')')
-					{
-						break;
-					}
-
-					if (c != '(')
-					{
-						lc.Append(c);
-					}
-				}
-
-				lastCast = lc.ToString();
-			}
-
-			if (!string.IsNullOrEmpty(lastCast) && string.CompareOrdinal(type, lastCast) == 0)
+			var ptype = type.Parentize();
+			if (expr.StartsWith(ptype))
 			{
 				return expr;
 			}
 
-			return type.Parentize() + expr.Parentize();
+			return ptype + expr.Parentize();
 		}
 
 		public static string Curlize(this string expr)
