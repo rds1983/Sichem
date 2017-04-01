@@ -1,4 +1,4 @@
-version: 0.3.0.{build}
+version: 0.3.5.{build}
 configuration: Release
 assembly_info:
   patch: true
@@ -9,6 +9,7 @@ assembly_info:
 build_script:
 - cmd: >-
     msbuild Sichem.Framework\Sichem.Framework.csproj /p:Configuration=Release /t:rebuild
+    msbuild Sichem.Framework\Sichem.Framework.NETStandard.csproj /p:Configuration=Release /t:rebuild
 
     nuget pack Sichem.Framework\Sichem.Framework.nuspec -Version %APPVEYOR_BUILD_VERSION%
 artifacts:

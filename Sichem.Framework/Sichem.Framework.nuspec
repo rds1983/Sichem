@@ -4,8 +4,8 @@
 		<id>Sichem.Framework</id>
 		<version>$version$</version>
 		<title>Sichem.Framework</title>
-		<authors>Abarim Games</authors>
-		<owners>Abarim Games</owners>
+		<authors>SichemTeam</authors>
+		<owners>SichemTeam</owners>
 		<projectUrl>https://github.com/rds1983/Sichem</projectUrl>
 		<requireLicenseAcceptance>false</requireLicenseAcceptance>
 		<description>Internal framework of Sichem</description>
@@ -14,5 +14,6 @@
 	</metadata>
 	<files>
 		<file src="bin\Release\Sichem.Framework.dll" target="lib\net45\Sichem.Framework.dll"/>
+		<file src="bin\Release\netstandard1.1\Sichem.Framework.dll" target="lib\netstandard1.1\Sichem.Framework.dll"/>
 	</files>
 </package>
