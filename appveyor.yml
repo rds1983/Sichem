@@ -11,6 +11,8 @@ build_script:
 - cmd: >-
     msbuild Sichem.Framework\Sichem.Framework.csproj /p:Configuration=Release /t:rebuild
 
+    nuget restore Sichem.Framework\\Sichem.Framework.csproj
+
     msbuild Sichem.Framework\Sichem.Framework.NETStandard.csproj /p:Configuration=Release /t:rebuild
 
     nuget pack Sichem.Framework\Sichem.Framework.nuspec -Version %APPVEYOR_BUILD_VERSION%
