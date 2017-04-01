@@ -1,4 +1,5 @@
 version: 0.3.5.{build}
+image: Visual Studio 2017
 configuration: Release
 assembly_info:
   patch: true
