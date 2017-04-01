@@ -13,7 +13,7 @@
 		<tags>csharp</tags>
 	</metadata>
 	<files>
-		<file src="bin\Release\Sichem.Framework.dll" target="lib\net45\Sichem.Framework.dll"/>
+		<file src="bin\Release\Sichem.Framework.dll" target="lib\portable-net45+win+wp81+MonoAndroid10+MonoTouch10\Sichem.Framework.dll"/>
 		<file src="bin\Release\netstandard1.1\Sichem.Framework.dll" target="lib\netstandard1.1\Sichem.Framework.dll"/>
 	</files>
 </package>
