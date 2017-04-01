@@ -11,7 +11,7 @@ build_script:
 - cmd: >-
     msbuild Sichem.Framework\Sichem.Framework.csproj /p:Configuration=Release /t:rebuild
 
-    nuget restore Sichem.Framework\\Sichem.Framework.csproj
+    nuget restore Sichem.Framework\Sichem.Framework.NETStandard.csproj
 
     msbuild Sichem.Framework\Sichem.Framework.NETStandard.csproj /p:Configuration=Release /t:rebuild
 
