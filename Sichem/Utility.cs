@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using ClangSharp;
 using SealangSharp;
 
@@ -497,8 +498,14 @@ namespace Sichem
 			return false;
 		}
 
-		public static string Parentize(this string expr)
+		public static bool CorrectlyParentized(this string expr)
 		{
+			if (string.IsNullOrEmpty(expr))
+			{
+				return false;
+			}
+
+			expr = expr.Trim();
 			if (expr.StartsWith("(") && expr.EndsWith(")"))
 			{
 				var pcount = 1;
@@ -523,12 +530,39 @@ namespace Sichem
 
 				if (pcount > 0)
 				{
-					return expr;
+					return true;
 				}
+			}
 
+			return false;
+		}
+
+		public static string Parentize(this string expr)
+		{
+			if (expr.CorrectlyParentized())
+			{
+				return expr;
 			}
 
 			return "(" + expr + ")";
+		}
+
+		public static string Deparentize(this string expr)
+		{
+			if (string.IsNullOrEmpty(expr))
+			{
+				return expr;
+			}
+
+			// Remove white space
+			expr = Regex.Replace(expr, @"\s+", "");
+
+			while(expr.CorrectlyParentized())
+			{
+				expr = expr.Substring(1, expr.Length - 2);
+			}
+
+			return expr;
 		}
 
 		public static string ApplyCast(this string expr, string type)
@@ -538,13 +572,27 @@ namespace Sichem
 				return expr;
 			}
 
-			var ptype = type.Parentize();
-			if (expr.StartsWith(ptype))
+			var lastCast = string.Empty;
+			var dexpr = expr.Deparentize();
+
+			var m = Regex.Match(dexpr, @"^\((\w+)\)(\(.+\))$");
+			if (m.Success)
+			{
+				lastCast = m.Groups[1].Value;
+				var val = m.Groups[2].Value;
+
+				if (!val.CorrectlyParentized())
+				{
+					lastCast = string.Empty;
+				}
+			}
+
+			if (!string.IsNullOrEmpty(lastCast) && string.CompareOrdinal(lastCast, type) == 0)
 			{
 				return expr;
 			}
 
-			return ptype + expr.Parentize();
+			return type.Parentize() + expr.Parentize();
 		}
 
 		public static string Curlize(this string expr)
