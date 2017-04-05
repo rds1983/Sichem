@@ -106,7 +106,8 @@ namespace Sichem
 
 					if (_isStruct && expr.Info.IsArray && expr.Info.Type.GetPointeeType().kind != CXTypeKind.CXType_Record)
 					{
-						result += "fixed " + expr.Info.Type.GetPointeeType().ToCSharpTypeString() + " " + fieldName + "[" + expr.Expression + "]";
+						result += "fixed " + expr.Info.Type.GetPointeeType().ToCSharpTypeString() + " " + fieldName + "[" +
+						          expr.Expression + "]";
 					}
 					else
 					{
@@ -324,7 +325,7 @@ namespace Sichem
 
 			if (info.Type.IsPointer())
 			{
-				crp.Expression = crp.Expression.Parentize()+ " != null";
+				crp.Expression = crp.Expression.Parentize() + " != null";
 			}
 		}
 
@@ -383,7 +384,7 @@ namespace Sichem
 					var opCode = sealang.cursor_getUnaryOpcode(info.Cursor);
 					var expr = ProcessPossibleChildByIndex(info.Cursor, 0);
 
-					if ((int)opCode == 99999 && expr != null && !string.IsNullOrEmpty(expr.Expression))
+					if ((int) opCode == 99999 && expr != null && !string.IsNullOrEmpty(expr.Expression))
 					{
 						// sizeof
 						return "sizeof(" + expr.Expression + ")";
@@ -751,29 +752,37 @@ namespace Sichem
 							}
 
 							var t = info.Type.GetPointeeType().ToCSharpTypeString();
+
 							if (rvalue.Info.Kind == CXCursorKind.CXCursor_TypeRef ||
-							    rvalue.Info.Kind == CXCursorKind.CXCursor_IntegerLiteral)
+							    rvalue.Info.Kind == CXCursorKind.CXCursor_IntegerLiteral ||
+							    rvalue.Info.Kind == CXCursorKind.CXCursor_BinaryOperator)
 							{
+								string sizeExp;
+								if (rvalue.Info.Kind == CXCursorKind.CXCursor_TypeRef ||
+								    rvalue.Info.Kind == CXCursorKind.CXCursor_IntegerLiteral)
+								{
+									sizeExp = info.Type.GetArraySize().ToString();
+								}
+								else
+								{
+									sizeExp = rvalue.Expression;
+								}
+
 								if (_state != State.Functions || info.Type.GetPointeeType().IsClass())
 								{
 									if (!_parameters.GlobalArrays.Contains(name))
 									{
-										rvalue.Expression = "new PinnedArray<" + t + ">(" + info.Type.GetArraySize() + ")";
+										rvalue.Expression = "new PinnedArray<" + t + ">(" + sizeExp + ")";
 									}
 									else
 									{
-										rvalue.Expression = "new " + t + "[" + info.Type.GetArraySize() + "]";
+										rvalue.Expression = "new " + t + "[" + sizeExp + "]";
 									}
 								}
 								else
 								{
-									rvalue.Expression = "stackalloc " + arrayType + "[" + info.Type.GetArraySize() + "]";
-
+									rvalue.Expression = "stackalloc " + arrayType + "[" + sizeExp + "]";
 								}
-							}
-							else if (rvalue.Info.Kind == CXCursorKind.CXCursor_BinaryOperator)
-							{
-								rvalue.Expression = "new PinnedArray<" + t + ">(" + rvalue.Expression + ")";
 							}
 						}
 					}
@@ -818,7 +827,7 @@ namespace Sichem
 									else
 									{
 										rvalue.Expression = rvalue.Expression;
-										
+
 									}
 								}
 								else
