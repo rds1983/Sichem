@@ -572,21 +572,31 @@ namespace Sichem
 							break;
 						case 2:
 							start = ProcessChildByIndex(info.Cursor, 0);
-							execution = ProcessChildByIndex(info.Cursor, 1);
+							condition = ProcessChildByIndex(info.Cursor, 1);
 							break;
 						case 3:
-							var first = ProcessChildByIndex(info.Cursor, 0);
-							if (first.Info.Kind == CXCursorKind.CXCursor_BinaryOperator &&
-							    sealang.cursor_getBinaryOpcode(first.Info.Cursor).IsBooleanOperator())
+							var expr = ProcessChildByIndex(info.Cursor, 0);
+							if (expr.Info.Kind == CXCursorKind.CXCursor_BinaryOperator &&
+							    sealang.cursor_getBinaryOpcode(expr.Info.Cursor).IsBooleanOperator())
 							{
-								condition = first;
+								condition = expr;
 							}
 							else
 							{
-								start = first;
+								start = expr;
 							}
 
-							it = ProcessChildByIndex(info.Cursor, 1);
+							expr = ProcessChildByIndex(info.Cursor, 1);
+							if (expr.Info.Kind == CXCursorKind.CXCursor_BinaryOperator &&
+								sealang.cursor_getBinaryOpcode(expr.Info.Cursor).IsBooleanOperator())
+							{
+								condition = expr;
+							}
+							else
+							{
+								it = expr;
+							}
+
 							execution = ProcessChildByIndex(info.Cursor, 2);
 							break;
 						case 4:

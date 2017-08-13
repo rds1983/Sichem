@@ -250,6 +250,11 @@ namespace Sichem
 				name = "_in_";
 			}
 
+			if (name == "base")
+			{
+				name = "_base_";
+			}
+
 			return name;
 		}
 
