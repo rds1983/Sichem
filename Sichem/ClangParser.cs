@@ -78,7 +78,6 @@ namespace Sichem
 
 			_output.WriteLine("using System;");
 			_output.WriteLine("using System.Runtime.InteropServices;");
-			_output.WriteLine("using Sichem;");
 			_output.WriteLine();
 
 			if (!string.IsNullOrEmpty(parameters.Namespace))

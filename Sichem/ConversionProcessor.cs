@@ -163,7 +163,8 @@ namespace Sichem
 					var name = clang.getCursorSpelling(c).ToString();
 
 					var child = ProcessPossibleChildByIndex(c, 0);
-					var value = child != null ? int.Parse(child.Expression) : i;
+
+					var value = child != null ? child.Expression.ParseNumber() : i;
 
 					var expr = "public const int " + name + " = " + value + ";";
 					IndentedWriteLine(expr);
@@ -234,6 +235,11 @@ namespace Sichem
 				_functionStatement = body.Value;
 
 				_functionName = clang.getCursorSpelling(cursor).ToString();
+
+				if (_functionName == "stbtt__new_active")
+				{
+					var k = 5;
+				}
 
 				if (Parameters.SkipFunctions.Contains(_functionName))
 				{
@@ -1053,8 +1059,6 @@ namespace Sichem
 			_indentLevel++;
 
 			clang.visitChildren(_functionStatement, VisitFunctionBody, new CXClientData(IntPtr.Zero));
-
-			// DumpCursor(cursor);
 
 			_indentLevel--;
 

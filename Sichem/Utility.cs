@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -176,6 +177,8 @@ namespace Sichem
 				spelling = spelling.Replace("const ", string.Empty); // ugh
 			}
 
+			spelling = spelling.Replace("struct ", string.Empty);
+
 			sb.Append(spelling);
 			return sb.ToString();
 		}
@@ -199,6 +202,8 @@ namespace Sichem
 						{
 							name = name.Replace("const ", string.Empty); // ugh
 						}
+
+						name = name.Replace("struct ", string.Empty);
 						recordType = Structs.Contains(name) ? RecordType.Struct : RecordType.Class;
 						return;
 					}
@@ -253,6 +258,11 @@ namespace Sichem
 			if (name == "base")
 			{
 				name = "_base_";
+			}
+
+			if (name == "next")
+			{
+				name = "_next_";
 			}
 
 			return name;
@@ -610,6 +620,17 @@ namespace Sichem
 			}
 
 			return "{" + expr + "}";
+		}
+
+		public static int ParseNumber(this string num)
+		{
+			if (num.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+			{
+				num = num.Substring(2);
+				return int.Parse(num, NumberStyles.HexNumber);
+			}
+
+			return int.Parse(num);
 		}
 	}
 }
