@@ -18,7 +18,7 @@ namespace Sichem
 
 	public static class Utility
 	{
-		public static HashSet<string> Structs = new HashSet<string>();
+		public static HashSet<string> Classes = new HashSet<string>();
 
 		private static readonly Stack<Func<CXCursor, CXChildVisitResult>> _visitorActionStack =
 			new Stack<Func<CXCursor, CXChildVisitResult>>();
@@ -169,6 +169,10 @@ namespace Sichem
 					break;
 				default:
 					spelling = clang.getCanonicalType(type).ToPlainTypeString();
+					if (spelling.StartsWith("enum "))
+					{
+						spelling = "int";
+					}
 					break;
 			}
 
@@ -196,16 +200,8 @@ namespace Sichem
 				{
 					case CXTypeKind.CXType_Record:
 					{
-						name = clang.getTypeSpelling(type).ToString();
-						var isConstQualifiedType = clang.isConstQualifiedType(type) != 0;
-						if (isConstQualifiedType)
-						{
-							name = name.Replace("const ", string.Empty); // ugh
-						}
-
-						name = name.Replace("struct ", string.Empty);
-						recordType = Structs.Contains(name) ? RecordType.Struct : RecordType.Class;
-						return;
+						run = false;
+						break;
 					}
 
 					case CXTypeKind.CXType_IncompleteArray:
@@ -220,6 +216,16 @@ namespace Sichem
 						break;
 				}
 			}
+
+			name = clang.getTypeSpelling(type).ToString();
+			var isConstQualifiedType = clang.isConstQualifiedType(type) != 0;
+			if (isConstQualifiedType)
+			{
+				name = name.Replace("const ", string.Empty); // ugh
+			}
+
+			name = name.Replace("struct ", string.Empty);
+			recordType = Classes.Contains(name) ? RecordType.Class : RecordType.Struct;
 		}
 
 		public static CXType GetPointeeType(this CXType type)
@@ -263,6 +269,16 @@ namespace Sichem
 			if (name == "next")
 			{
 				name = "_next_";
+			}
+
+			if (name == "null")
+			{
+				name = "_null_";
+			}
+
+			if (name == "string")
+			{
+				name = "_string_";
 			}
 
 			return name;

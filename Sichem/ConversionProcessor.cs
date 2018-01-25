@@ -72,11 +72,11 @@ namespace Sichem
 						}
 					}
 
-					if (!_visitedStructs.Contains(structName) && !Parameters.SkipStructs.Contains(structName))
+					if (!_visitedStructs.Contains(structName) && !Parameters.SkipStructs.Contains(structName) && cursor.GetChildrenCount() > 0)
 					{
 						Logger.Info("Processing struct {0}", structName);
 
-						_isStruct = Parameters.Structs.Contains(structName);
+						_isStruct = !Parameters.Classes.Contains(structName);
 
 						if (_isStruct)
 						{
@@ -100,6 +100,7 @@ namespace Sichem
 					return CXChildVisitResult.CXChildVisit_Continue;
 				case CXCursorKind.CXCursor_FieldDecl:
 					var fieldName = clang.getCursorSpelling(cursor).ToString().FixSpecialWords();
+
 					var expr = Process(cursor);
 
 					var result = "public ";

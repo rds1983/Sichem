@@ -17,10 +17,10 @@ namespace Sichem
 				throw new ArgumentNullException("parameters");
 			}
 
-			Utility.Structs.Clear();
-			foreach (var c in parameters.Structs)
+			Utility.Classes.Clear();
+			foreach (var c in parameters.Classes)
 			{
-				Utility.Structs.Add(c);
+				Utility.Classes.Add(c);
 			}
 
 			var arr = new List<string>();
