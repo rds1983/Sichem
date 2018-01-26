@@ -121,7 +121,7 @@ namespace Sichem
 						{
 							result += " = new " + expr.Info.CsType + expr.Expression.Parentize();
 						}
-						else if (expr.Info.RecordType != RecordType.None)
+						else if (!expr.Info.IsPointer && expr.Info.RecordType != RecordType.None)
 						{
 							result += " = new " + expr.Info.CsType + "()";
 						}
@@ -391,7 +391,7 @@ namespace Sichem
 					var opCode = sealang.cursor_getUnaryOpcode(info.Cursor);
 					var expr = ProcessPossibleChildByIndex(info.Cursor, 0);
 
-					if ((int) opCode == 99999 && expr != null && !string.IsNullOrEmpty(expr.Expression))
+					if ((int)opCode == 99999 && expr != null && !string.IsNullOrEmpty(expr.Expression))
 					{
 						// sizeof
 						return "sizeof(" + expr.Expression + ")";

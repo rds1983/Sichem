@@ -192,6 +192,7 @@ namespace Sichem
 			recordType = RecordType.None;
 			name = string.Empty;
 			var run = true;
+			var determine = false;
 			while (run)
 			{
 				type = type.Desugar();
@@ -200,6 +201,7 @@ namespace Sichem
 				{
 					case CXTypeKind.CXType_Record:
 					{
+						determine = true;
 						run = false;
 						break;
 					}
@@ -212,20 +214,24 @@ namespace Sichem
 						type = clang.getPointeeType(type);
 						continue;
 					default:
+						determine = clang.getTypeSpelling(type).ToString().Contains("struct ");
 						run = false;
 						break;
 				}
 			}
 
-			name = clang.getTypeSpelling(type).ToString();
-			var isConstQualifiedType = clang.isConstQualifiedType(type) != 0;
-			if (isConstQualifiedType)
+			if (determine)
 			{
-				name = name.Replace("const ", string.Empty); // ugh
-			}
+				name = clang.getTypeSpelling(type).ToString();
+				var isConstQualifiedType = clang.isConstQualifiedType(type) != 0;
+				if (isConstQualifiedType)
+				{
+					name = name.Replace("const ", string.Empty); // ugh
+				}
 
-			name = name.Replace("struct ", string.Empty);
-			recordType = Classes.Contains(name) ? RecordType.Class : RecordType.Struct;
+				name = name.Replace("struct ", string.Empty);
+				recordType = Classes.Contains(name) ? RecordType.Class : RecordType.Struct;
+			}
 		}
 
 		public static CXType GetPointeeType(this CXType type)
@@ -640,13 +646,20 @@ namespace Sichem
 
 		public static int ParseNumber(this string num)
 		{
-			if (num.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+			try
 			{
-				num = num.Substring(2);
-				return int.Parse(num, NumberStyles.HexNumber);
-			}
+				if (num.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+				{
+					num = num.Substring(2);
+					return int.Parse(num, NumberStyles.HexNumber);
+				}
 
-			return int.Parse(num);
+				return int.Parse(num);
+			}
+			catch (Exception ex)
+			{
+				return 0;
+			}
 		}
 	}
 }
