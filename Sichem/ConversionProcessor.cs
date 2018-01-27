@@ -965,6 +965,8 @@ namespace Sichem
 
 				case CXCursorKind.CXCursor_BreakStmt:
 					return "break";
+				case CXCursorKind.CXCursor_ContinueStmt:
+					return "continue";
 
 				case CXCursorKind.CXCursor_CStyleCastExpr:
 				{
