@@ -165,12 +165,12 @@ namespace Sichem
 
 					var child = ProcessPossibleChildByIndex(c, 0);
 
-					var value = child != null ? child.Expression.ParseNumber() : i;
+					var value = child != null ? child.Expression : i.ToString();
 
 					var expr = "public const int " + name + " = " + value + ";";
 					IndentedWriteLine(expr);
 
-					i = value + 1;
+					i++;
 
 					return CXChildVisitResult.CXChildVisit_Continue;
 				});
@@ -286,6 +286,13 @@ namespace Sichem
 
 			if (info.Kind == CXCursorKind.CXCursor_ParenExpr)
 			{
+				var child2 = ProcessChildByIndex(info.Cursor, 0);
+				if (child2.Info.Kind == CXCursorKind.CXCursor_BinaryOperator &&
+					sealang.cursor_getBinaryOpcode(child2.Info.Cursor).IsBinaryOperator())
+				{
+					var sub = ProcessChildByIndex(crp.Info.Cursor, 0);
+					crp.Expression = sub.Expression.Parentize() + "!= 0";
+				}
 				return;
 			}
 
