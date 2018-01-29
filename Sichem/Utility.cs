@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -22,6 +23,21 @@ namespace Sichem
 
 		private static readonly Stack<Func<CXCursor, CXChildVisitResult>> _visitorActionStack =
 			new Stack<Func<CXCursor, CXChildVisitResult>>();
+
+		private static readonly HashSet<string> _specialWords = new HashSet<string>(new string[]
+		{
+			"out", "in", "base", "null", "string"
+		});
+
+		public static string FixSpecialWords(this string name)
+		{
+			if (_specialWords.Contains(name))
+			{
+				name = "_" + name + "_";
+			}
+
+			return name;
+		}
 
 		public static bool IsInSystemHeader(this CXCursor cursor)
 		{
@@ -253,41 +269,6 @@ namespace Sichem
 
 				return type;
 			}
-		}
-
-		public static string FixSpecialWords(this string name)
-		{
-			if (name == "out")
-			{
-				name = "_out_";
-			}
-
-			if (name == "in")
-			{
-				name = "_in_";
-			}
-
-			if (name == "base")
-			{
-				name = "_base_";
-			}
-
-			if (name == "next")
-			{
-				name = "_next_";
-			}
-
-			if (name == "null")
-			{
-				name = "_null_";
-			}
-
-			if (name == "string")
-			{
-				name = "_string_";
-			}
-
-			return name;
 		}
 
 		private static CXChildVisitResult ActionVisitor(CXCursor cursor, CXCursor parent, IntPtr data)
@@ -594,7 +575,7 @@ namespace Sichem
 			// Remove white space
 			expr = Regex.Replace(expr, @"\s+", "");
 
-			while(expr.CorrectlyParentized())
+			while (expr.CorrectlyParentized())
 			{
 				expr = expr.Substring(1, expr.Length - 2);
 			}
@@ -644,22 +625,57 @@ namespace Sichem
 			return "{" + expr + "}";
 		}
 
-		public static int ParseNumber(this string num)
+		public static bool TryParseNumber(this string num, out int i)
 		{
+			var result = false;
+			i = 0;
 			try
 			{
 				if (num.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
 				{
 					num = num.Substring(2);
-					return int.Parse(num, NumberStyles.HexNumber);
+					i = int.Parse(num, NumberStyles.HexNumber);
+				}
+				else
+				{
+					i = int.Parse(num);
 				}
 
-				return int.Parse(num);
+				result = true;
 			}
 			catch (Exception ex)
 			{
-				return 0;
 			}
+
+			return result;
+		}
+
+		public static string ReplaceNativeCalls(string data)
+		{
+			// Build hash of C functions
+			var type = typeof (CRuntime);
+			var methods = new HashSet<string>();
+			foreach (var f in type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+			{
+				methods.Add(f.Name);
+			}
+
+			var name = type.Name;
+			foreach (var m in methods)
+			{
+				data = data.Replace("(" + m + "(", "(" + name + "." + m + "(");
+				data = data.Replace(" " + m + "(", " " + name + "." + m + "(");
+				data = data.Replace(";" + m + "(", ";" + name + "." + m + "(");
+				data = data.Replace(":" + m + "(", ":" + name + "." + m + "(");
+				data = data.Replace("\t" + m + "(", "\t" + name + "." + m + "(");
+				data = data.Replace("\n" + m + "(", "\n" + name + "." + m + "(");
+				data = data.Replace("-" + m + "(", "-" + name + "." + m + "(");
+				data = data.Replace("{" + m + "(", "{" + name + "." + m + "(");
+				data = data.Replace("}" + m + "(", "}" + name + "." + m + "(");
+				data = data.Replace("?" + m + "(", "?" + name + "." + m + "(");
+			}
+
+			return data;
 		}
 	}
 }
