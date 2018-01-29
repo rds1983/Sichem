@@ -164,11 +164,14 @@ namespace Sichem
 					var name = clang.getCursorSpelling(c).ToString();
 					var child = ProcessPossibleChildByIndex(c, 0);
 					var value = i.ToString();
-					int parsed;
-					if (child != null && child.Expression.TryParseNumber(out parsed))
+					if (child != null)
 					{
-						value = parsed.ToString();
-						i = parsed;
+						value = child.Expression;
+						int parsed;
+						if (child.Expression.TryParseNumber(out parsed))
+						{
+							i = parsed;
+						}
 					}
 
 					var expr = "public const int " + name + " = " + value + ";";
@@ -476,6 +479,13 @@ namespace Sichem
 						}
 					}
 
+					if (a.Info.IsPointer &&
+						(type == BinaryOperatorKind.Assign || type.IsBooleanOperator()) &&
+					    (b.Expression.Deparentize() == "0"))
+					{
+						b.Expression = "null";
+					}
+
 					var str = sealang.cursor_getOperatorString(info.Cursor);
 					var result = a.Expression + " " + str + " " + b.Expression;
 
@@ -518,6 +528,9 @@ namespace Sichem
 						if (!argExpr.Info.IsPointer)
 						{
 							argExpr.Expression = argExpr.Expression.ApplyCast(argExpr.Info.CsType);
+						} else if (argExpr.Expression.Deparentize() == "0")
+						{
+							argExpr.Expression = "null";
 						}
 
 						args.Add(argExpr.Expression);
@@ -551,6 +564,11 @@ namespace Sichem
 
 							return "return " + ret.ApplyCast(_returnType.ToCSharpTypeString());
 						}
+					}
+
+					if (_returnType.IsPointer() && ret == "0")
+					{
+						ret = "null";
 					}
 
 					var exp = string.IsNullOrEmpty(ret) ? "return" : "return " + ret;
@@ -885,6 +903,12 @@ namespace Sichem
 							{
 								rvalue.Expression = "((" + info.Type.GetPointeeType().ToCSharpTypeString() + "*)" + rvalue.Expression + ")";
 							}
+
+							if (info.IsPointer && !info.IsArray && rvalue.Expression == "0")
+							{
+								rvalue.Expression = "null";
+							}
+
 							expr += " = " + rvalue.Expression;
 						}
 					}
