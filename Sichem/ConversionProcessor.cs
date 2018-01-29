@@ -121,7 +121,7 @@ namespace Sichem
 						{
 							result += " = new " + expr.Info.CsType + expr.Expression.Parentize();
 						}
-						else if (!expr.Info.IsPointer && expr.Info.RecordType != RecordType.None)
+						else if (expr.Info.RecordType != RecordType.None)
 						{
 							result += " = new " + expr.Info.CsType + "()";
 						}
@@ -162,10 +162,14 @@ namespace Sichem
 				cursor.VisitWithAction(c =>
 				{
 					var name = clang.getCursorSpelling(c).ToString();
-
 					var child = ProcessPossibleChildByIndex(c, 0);
-
-					var value = child != null ? child.Expression : i.ToString();
+					var value = i.ToString();
+					int parsed;
+					if (child != null && child.Expression.TryParseNumber(out parsed))
+					{
+						value = parsed.ToString();
+						i = parsed;
+					}
 
 					var expr = "public const int " + name + " = " + value + ";";
 					IndentedWriteLine(expr);
@@ -236,11 +240,6 @@ namespace Sichem
 				_functionStatement = body.Value;
 
 				_functionName = clang.getCursorSpelling(cursor).ToString();
-
-				if (_functionName == "stbtt__new_active")
-				{
-					var k = 5;
-				}
 
 				if (Parameters.SkipFunctions.Contains(_functionName))
 				{
@@ -398,10 +397,16 @@ namespace Sichem
 					var opCode = sealang.cursor_getUnaryOpcode(info.Cursor);
 					var expr = ProcessPossibleChildByIndex(info.Cursor, 0);
 
-					if ((int)opCode == 99999 && expr != null && !string.IsNullOrEmpty(expr.Expression))
+					if ((int)opCode == 99999 && expr != null)
 					{
-						// sizeof
-						return "sizeof(" + expr.Expression + ")";
+						if (!string.IsNullOrEmpty(expr.Expression))
+						{
+							// sizeof
+							return "sizeof(" + expr.Expression + ")";
+						} else if (expr.Info.Kind == CXCursorKind.CXCursor_TypeRef)
+						{
+							return "sizeof(" + expr.Info.CsType + ")";
+						}
 					}
 
 					var tokens = info.Cursor.Tokenize(_translationUnit);
