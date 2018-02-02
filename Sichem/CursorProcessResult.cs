@@ -2,7 +2,7 @@
 
 namespace Sichem
 {
-	internal class CursorProcessResult
+	public class CursorProcessResult
 	{
 		private readonly CursorInfo _info;
 

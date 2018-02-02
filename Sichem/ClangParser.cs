@@ -10,6 +10,9 @@ namespace Sichem
 	{
 		private TextWriter _output;
 
+		public BaseProcessor Processor { get; private set; }
+
+
 		public void Process(ConversionParameters parameters)
 		{
 			if (parameters == null)
@@ -90,9 +93,14 @@ namespace Sichem
 				parameters.Class);
 
 			// Process
-			var processor = new ConversionProcessor(parameters, tu, _output);
+			Processor = new ConversionProcessor(parameters, tu, _output);
 			// var processor = new DumpProcessor(tu, _output);
-			processor.Run();
+			Processor.Run();
+
+			if (parameters.BeforeLastClosingBracket != null)
+			{
+				parameters.BeforeLastClosingBracket();
+			}
 
 			_output.Write("\t}");
 

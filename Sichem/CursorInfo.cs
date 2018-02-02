@@ -2,7 +2,7 @@
 
 namespace Sichem
 {
-	internal class CursorInfo
+	public class CursorInfo
 	{
 		private readonly CXCursor _cursor;
 		private readonly CXCursorKind _kind;

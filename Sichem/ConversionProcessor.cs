@@ -30,8 +30,13 @@ namespace Sichem
 		private CXType _returnType;
 		private string _functionName;
 		private readonly HashSet<string> _visitedStructs = new HashSet<string>();
+
+		private readonly Dictionary<string, Dictionary<string, int>> _refArguments =
+			new Dictionary<string, Dictionary<string, int>>();
+
 		private bool _isStruct;
 		private State _state;
+		private readonly List<string> _items = new List<string>();
 
 		public ConversionProcessor(ConversionParameters parameters, CXTranslationUnit translationUnit, TextWriter writer)
 			: base(translationUnit, writer)
@@ -72,7 +77,8 @@ namespace Sichem
 						}
 					}
 
-					if (!_visitedStructs.Contains(structName) && !Parameters.SkipStructs.Contains(structName) && cursor.GetChildrenCount() > 0)
+					if (!_visitedStructs.Contains(structName) && !Parameters.SkipStructs.Contains(structName) &&
+					    cursor.GetChildrenCount() > 0)
 					{
 						Logger.Info("Processing struct {0}", structName);
 
@@ -208,7 +214,17 @@ namespace Sichem
 
 				var res = Process(cursor);
 
-				res.Expression = "public static " + res.Expression + ";";
+				if (Parameters.CustomGlobalVariableProcessor != null)
+				{
+					Parameters.CustomGlobalVariableProcessor(res);
+				}
+
+				if (!res.Expression.EndsWith(";"))
+				{
+					res.Expression += ";";
+				}
+
+				res.Expression = "public static " + res.Expression;
 
 				if (!string.IsNullOrEmpty(res.Expression))
 				{
@@ -221,6 +237,37 @@ namespace Sichem
 			return CXChildVisitResult.CXChildVisit_Continue;
 		}
 
+		private CXChildVisitResult VisitFunctionsPreprocess(CXCursor cursor, CXCursor parent, IntPtr data)
+		{
+			if (cursor.IsInSystemHeader())
+			{
+				return CXChildVisitResult.CXChildVisit_Continue;
+			}
+
+			var curKind = clang.getCursorKind(cursor);
+
+			// first run - build _refArguments
+			if (curKind == CXCursorKind.CXCursor_FunctionDecl)
+			{
+				// Skip empty declarations
+				var body = cursor.FindChild(CXCursorKind.CXCursor_CompoundStmt);
+				if (!body.HasValue)
+				{
+					return CXChildVisitResult.CXChildVisit_Continue;
+				}
+
+				_functionStatement = body.Value;
+
+				_functionName = clang.getCursorSpelling(cursor).ToString();
+
+				Logger.Info("Prerocessing function {0}", _functionName);
+
+				ProcessFunctionPreprocess(cursor);
+			}
+
+			return CXChildVisitResult.CXChildVisit_Recurse;
+		}
+
 		private CXChildVisitResult VisitFunctions(CXCursor cursor, CXCursor parent, IntPtr data)
 		{
 			if (cursor.IsInSystemHeader())
@@ -230,7 +277,7 @@ namespace Sichem
 
 			var curKind = clang.getCursorKind(cursor);
 
-			// look only at function decls
+			// second run - code generation
 			if (curKind == CXCursorKind.CXCursor_FunctionDecl)
 			{
 				// Skip empty declarations
@@ -290,7 +337,7 @@ namespace Sichem
 			{
 				var child2 = ProcessChildByIndex(info.Cursor, 0);
 				if (child2.Info.Kind == CXCursorKind.CXCursor_BinaryOperator &&
-					sealang.cursor_getBinaryOpcode(child2.Info.Cursor).IsBinaryOperator())
+				    sealang.cursor_getBinaryOpcode(child2.Info.Cursor).IsBinaryOperator())
 				{
 					var sub = ProcessChildByIndex(crp.Info.Cursor, 0);
 					crp.Expression = sub.Expression.Parentize() + "!= 0";
@@ -400,13 +447,14 @@ namespace Sichem
 					var opCode = sealang.cursor_getUnaryOpcode(info.Cursor);
 					var expr = ProcessPossibleChildByIndex(info.Cursor, 0);
 
-					if ((int)opCode == 99999 && expr != null)
+					if ((int) opCode == 99999 && expr != null)
 					{
 						if (!string.IsNullOrEmpty(expr.Expression))
 						{
 							// sizeof
 							return "sizeof(" + expr.Expression + ")";
-						} else if (expr.Info.Kind == CXCursorKind.CXCursor_TypeRef)
+						}
+						else if (expr.Info.Kind == CXCursorKind.CXCursor_TypeRef)
 						{
 							return "sizeof(" + expr.Info.CsType + ")";
 						}
@@ -416,7 +464,9 @@ namespace Sichem
 					return string.Join(string.Empty, tokens);
 				}
 				case CXCursorKind.CXCursor_DeclRefExpr:
+				{
 					return info.Spelling.FixSpecialWords();
+				}
 				case CXCursorKind.CXCursor_CompoundAssignOperator:
 				case CXCursorKind.CXCursor_BinaryOperator:
 				{
@@ -480,7 +530,7 @@ namespace Sichem
 					}
 
 					if (a.Info.IsPointer &&
-						(type == BinaryOperatorKind.Assign || type.IsBooleanOperator()) &&
+					    (type == BinaryOperatorKind.Assign || type.IsBooleanOperator()) &&
 					    (b.Expression.Deparentize() == "0"))
 					{
 						b.Expression = "null";
@@ -506,6 +556,12 @@ namespace Sichem
 					var left = type.IsUnaryOperatorPre();
 					if (left)
 					{
+						if (str == "*" && _refArguments.ContainsKey(_functionName) &&
+						    _refArguments[_functionName].ContainsKey(a.Expression.Deparentize()))
+						{
+							return a.Expression;
+						}
+
 						return str + a.Expression;
 					}
 
@@ -525,10 +581,17 @@ namespace Sichem
 					{
 						var argExpr = ProcessChildByIndex(info.Cursor, i);
 
-						if (!argExpr.Info.IsPointer)
+						if (_refArguments.ContainsKey(functionName) && _refArguments[functionName].ContainsValue(i - 1))
+						{
+							argExpr.Expression = argExpr.Expression.Replace("*", "");
+							argExpr.Expression = argExpr.Expression.Replace("&", "");
+							argExpr.Expression = "ref " + argExpr.Expression;
+						}
+						else if (!argExpr.Info.IsPointer)
 						{
 							argExpr.Expression = argExpr.Expression.ApplyCast(argExpr.Info.CsType);
-						} else if (argExpr.Expression.Deparentize() == "0")
+						}
+						else if (argExpr.Expression.Deparentize() == "0")
 						{
 							argExpr.Expression = "null";
 						}
@@ -625,7 +688,7 @@ namespace Sichem
 
 							expr = ProcessChildByIndex(info.Cursor, 1);
 							if (expr.Info.Kind == CXCursorKind.CXCursor_BinaryOperator &&
-								sealang.cursor_getBinaryOpcode(expr.Info.Cursor).IsBooleanOperator())
+							    sealang.cursor_getBinaryOpcode(expr.Info.Cursor).IsBooleanOperator())
 							{
 								condition = expr;
 							}
@@ -718,6 +781,7 @@ namespace Sichem
 				case CXCursorKind.CXCursor_ConditionalOperator:
 				{
 					var condition = ProcessChildByIndex(info.Cursor, 0);
+
 					var a = ProcessChildByIndex(info.Cursor, 1);
 					var b = ProcessChildByIndex(info.Cursor, 2);
 
@@ -755,7 +819,9 @@ namespace Sichem
 					var a = ProcessChildByIndex(info.Cursor, 0);
 
 					var op = ".";
-					if (a.Info.RecordType != RecordType.Class && a.Info.IsPointer)
+					if (a.Info.RecordType != RecordType.Class &&
+					    a.Info.IsPointer &&
+					    (!_refArguments.ContainsKey(_functionName) || !_refArguments[_functionName].ContainsKey(a.Expression)))
 					{
 						op = "->";
 					}
@@ -1016,7 +1082,7 @@ namespace Sichem
 						expr = expr.ApplyCast(info.CsType);
 					}
 
-					if (expr == "0")
+					if (expr.Deparentize() == "0")
 					{
 						expr = "null";
 					}
@@ -1046,6 +1112,11 @@ namespace Sichem
 					{
 						expr.Expression = expr.Expression.ApplyCast(info.CsType).Parentize();
 					}*/
+
+					if (info.IsPointer && expr.Expression.Deparentize() == "0")
+					{
+						expr.Expression = "null";
+					}
 
 					return expr.Expression;
 				}
@@ -1091,6 +1162,42 @@ namespace Sichem
 			return CXChildVisitResult.CXChildVisit_Continue;
 		}
 
+		private void ProcessFunctionPreprocess(CXCursor cursor)
+		{
+			var functionType = clang.getCursorType(cursor);
+			var functionName = clang.getCursorSpelling(cursor).ToString();
+			_returnType = clang.getCursorResultType(cursor).Desugar();
+
+			var numArgTypes = clang.getNumArgTypes(functionType);
+			for (uint i = 0; i < numArgTypes; ++i)
+			{
+				var paramCursor = clang.Cursor_getArgument(cursor, i);
+				var spelling = clang.getCursorSpelling(paramCursor).ToString();
+				var type = clang.getArgType(functionType, i);
+
+				var name = spelling.FixSpecialWords();
+				var typeName = type.ToCSharpTypeString(true);
+
+				if (typeName.EndsWith("*"))
+				{
+					if (Parameters.UseRefInsteadOfPointer != null &&
+					    !typeName.StartsWith("void") &&
+					    !Parameters.Classes.Contains(typeName) &&
+					    Parameters.UseRefInsteadOfPointer(functionName, typeName, name))
+					{
+						Dictionary<string, int> refArguments;
+						if (!_refArguments.TryGetValue(functionName, out refArguments))
+						{
+							refArguments = new Dictionary<string, int>();
+							_refArguments[functionName] = refArguments;
+						}
+
+						refArguments[name] = (int) i;
+					}
+				}
+			}
+		}
+
 		private void ProcessFunction(CXCursor cursor)
 		{
 			WriteFunctionStart(cursor);
@@ -1111,9 +1218,18 @@ namespace Sichem
 			var functionName = clang.getCursorSpelling(cursor).ToString();
 			_returnType = clang.getCursorResultType(cursor).Desugar();
 
-			IndentedWrite("public static " + _returnType.ToCSharpTypeString());
+			var sb = new StringBuilder();
+			IndentedWrite("public static ");
 
-			_writer.Write(" " + functionName + "(");
+			sb.Append(_returnType.ToCSharpTypeString());
+			sb.Append(" " + functionName);
+
+			var fd = sb.ToString();
+
+			_writer.Write(fd);
+			_writer.Write("(");
+
+			_items.Clear();
 
 			var numArgTypes = clang.getNumArgTypes(functionType);
 			for (uint i = 0; i < numArgTypes; ++i)
@@ -1123,6 +1239,11 @@ namespace Sichem
 
 			_writer.WriteLine(")");
 			IndentedWriteLine("{");
+
+			if (Parameters.FunctionHeaderProcessed != null)
+			{
+				Parameters.FunctionHeaderProcessed(fd, _items.ToArray());
+			}
 		}
 
 		private void ArgumentHelper(CXType functionType, CXCursor paramCursor, uint index)
@@ -1135,10 +1256,21 @@ namespace Sichem
 			var name = spelling.FixSpecialWords();
 			var typeName = type.ToCSharpTypeString(true);
 
-			_writer.Write(typeName);
-			_writer.Write(" ");
+			if (_refArguments.ContainsKey(_functionName) && _refArguments[_functionName].ContainsKey(name))
+			{
+				typeName = "ref " + typeName.Substring(0, typeName.Length - 1);
+			}
 
-			_writer.Write(name);
+			var sb = new StringBuilder();
+
+			sb.Append(typeName);
+			sb.Append(" ");
+
+			sb.Append(name);
+
+			_items.Add(sb.ToString());
+
+			_writer.Write(sb);
 
 			if (index != numArgTypes - 1)
 			{
@@ -1161,6 +1293,8 @@ namespace Sichem
 				new CXClientData(IntPtr.Zero));
 
 			_state = State.Functions;
+			clang.visitChildren(clang.getTranslationUnitCursor(_translationUnit), VisitFunctionsPreprocess,
+				new CXClientData(IntPtr.Zero));
 			clang.visitChildren(clang.getTranslationUnitCursor(_translationUnit), VisitFunctions, new CXClientData(IntPtr.Zero));
 		}
 	}

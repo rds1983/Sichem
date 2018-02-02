@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 
 namespace Sichem
 {
@@ -15,6 +16,11 @@ namespace Sichem
 		public string[] SkipFunctions { get; set; }
 		public string[] Classes { get; set; }
 		public string[] GlobalArrays { get; set; }
+
+		public Func<string, string, string, bool> UseRefInsteadOfPointer { get; set; }
+		public Action<CursorProcessResult> CustomGlobalVariableProcessor { get; set; }
+		public Action<string, string[]> FunctionHeaderProcessed { get; set; }
+		public Action BeforeLastClosingBracket { get; set; }
 
 		public ConversionParameters()
 		{

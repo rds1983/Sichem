@@ -23,7 +23,7 @@ namespace Sichem
 
 		public abstract void Run();
 
-		protected void WriteIndent()
+		public void WriteIndent()
 		{
 			for (var i = 0; i < _indentLevel; ++i)
 			{
@@ -31,13 +31,13 @@ namespace Sichem
 			}
 		}
 
-		protected void IndentedWriteLine(string line)
+		public void IndentedWriteLine(string line)
 		{
 			WriteIndent();
 			_writer.WriteLine(line);
 		}
 
-		protected void IndentedWrite(string data)
+		public void IndentedWrite(string data)
 		{
 			WriteIndent();
 			_writer.Write(data);
