@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using ClangSharp;
 using SealangSharp;
@@ -7,8 +8,36 @@ namespace Sichem
 {
 	public class DumpProcessor: BaseProcessor
 	{
-		public DumpProcessor(CXTranslationUnit translationUnit, TextWriter writer)
-			: base(translationUnit, writer)
+		private string _currentSource;
+		private readonly Dictionary<string, StringWriter> _writers = new Dictionary<string, StringWriter>();
+
+		public override Dictionary<string, StringWriter> Outputs
+		{
+			get { return _writers; }
+		}
+
+		protected override TextWriter Writer
+		{
+			get
+			{
+				if (string.IsNullOrEmpty(_currentSource))
+				{
+					return null;
+				}
+
+				StringWriter sw;
+				if (!_writers.TryGetValue(_currentSource, out sw))
+				{
+					sw = new StringWriter();
+					_writers[_currentSource] = sw;
+				}
+
+				return sw;
+			}
+		}
+
+		public DumpProcessor(CXTranslationUnit translationUnit)
+			: base(translationUnit)
 		{
 		}
 

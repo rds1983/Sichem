@@ -19,12 +19,12 @@ namespace Sichem
 
 	public static class Utility
 	{
-		public static HashSet<string> Classes = new HashSet<string>();
+		public static Func<string, bool> TreatStructAsClass { get; set; }
 
 		private static readonly Stack<Func<CXCursor, CXChildVisitResult>> _visitorActionStack =
 			new Stack<Func<CXCursor, CXChildVisitResult>>();
 
-		private static readonly HashSet<string> _specialWords = new HashSet<string>(new string[]
+		private static readonly HashSet<string> _specialWords = new HashSet<string>(new[]
 		{
 			"out", "in", "base", "null", "string"
 		});
@@ -177,7 +177,14 @@ namespace Sichem
 					}
 					else
 					{
-						sb.Append("PinnedArray<" + t.ToCSharpTypeString() + ">");
+						if (TreatStructAsClass != null && TreatStructAsClass(t.ToCSharpTypeString()))
+						{
+							sb.Append(t.ToCSharpTypeString() + "[]");
+						}
+						else
+						{
+							sb.Append("PinnedArray<" + t.ToCSharpTypeString() + ">");
+						}
 					}
 					break;
 				case CXTypeKind.CXType_Pointer:
@@ -246,7 +253,7 @@ namespace Sichem
 				}
 
 				name = name.Replace("struct ", string.Empty);
-				recordType = Classes.Contains(name) ? RecordType.Class : RecordType.Struct;
+				recordType = (TreatStructAsClass != null && TreatStructAsClass(name)) ? RecordType.Class : RecordType.Struct;
 			}
 		}
 
