@@ -59,8 +59,12 @@
     <Compile Include="DumpProcessor.cs" />
     <Compile Include="ForwardDeclarationVisitor.cs" />
     <Compile Include="ConversionProcessor.cs" />
+    <Compile Include="FunctionGenerationConfig.cs" />
+    <Compile Include="FunctionInfo.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="StructGenerationConfig.cs" />
+    <Compile Include="StructInfo.cs" />
     <Compile Include="Utility.cs" />
   </ItemGroup>
   <ItemGroup>

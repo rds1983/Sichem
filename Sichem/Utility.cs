@@ -20,6 +20,7 @@ namespace Sichem
 	public static class Utility
 	{
 		public static Func<string, bool> TreatStructAsClass { get; set; }
+		public static Func<string, string> TypeNameReplacer { get; set; } 
 
 		private static readonly Stack<Func<CXCursor, CXChildVisitResult>> _visitorActionStack =
 			new Stack<Func<CXCursor, CXChildVisitResult>>();
@@ -143,7 +144,7 @@ namespace Sichem
 			return sb.ToString();
 		}
 
-		public static string ToCSharpTypeString(this CXType type, bool treatArrayAsPointer = false)
+		public static string ToCSharpTypeString(this CXType type, bool treatArrayAsPointer = false, bool replace = true)
 		{
 			var isConstQualifiedType = clang.isConstQualifiedType(type) != 0;
 			var spelling = string.Empty;
@@ -177,7 +178,7 @@ namespace Sichem
 					}
 					else
 					{
-						if (TreatStructAsClass != null && TreatStructAsClass(t.ToCSharpTypeString()))
+						if (TreatStructAsClass != null && TreatStructAsClass(t.ToCSharpTypeString(false, false)))
 						{
 							sb.Append(t.ToCSharpTypeString() + "[]");
 						}
@@ -205,6 +206,11 @@ namespace Sichem
 			}
 
 			spelling = spelling.Replace("struct ", string.Empty);
+
+			if (replace && TypeNameReplacer != null)
+			{
+				spelling = TypeNameReplacer(spelling);
+			}
 
 			sb.Append(spelling);
 			return sb.ToString();
@@ -254,6 +260,11 @@ namespace Sichem
 
 				name = name.Replace("struct ", string.Empty);
 				recordType = (TreatStructAsClass != null && TreatStructAsClass(name)) ? RecordType.Class : RecordType.Struct;
+			}
+
+			if (TypeNameReplacer != null)
+			{
+				name = TypeNameReplacer(name);
 			}
 		}
 
@@ -618,6 +629,25 @@ namespace Sichem
 			}
 
 			return type.Parentize() + expr.Parentize();
+		}
+
+		public static string RemoveCasts(this string expr)
+		{
+			while (expr.StartsWith("("))
+			{
+				expr = expr.Deparentize();
+				var m = Regex.Match(expr, @"^\((\w+)\)(\(.+\))$");
+				if (m.Success)
+				{
+					expr = m.Groups[2].Value;
+				}
+				else
+				{
+					break;
+				}
+			}
+
+			return expr;
 		}
 
 		public static string Curlize(this string expr)

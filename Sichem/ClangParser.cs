@@ -16,8 +16,6 @@ namespace Sichem
 				throw new ArgumentNullException("parameters");
 			}
 
-			Utility.TreatStructAsClass = parameters.TreatStructAsClass;
-
 			var arr = new List<string>();
 
 			foreach (var d in parameters.Defines)

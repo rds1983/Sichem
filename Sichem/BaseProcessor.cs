@@ -83,5 +83,7 @@ namespace Sichem
 
 			Writer.Write(s);
 		}
+
+		public abstract RecordType GetRecordType(string name);
 	}
 }

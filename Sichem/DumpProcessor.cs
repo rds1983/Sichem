@@ -41,6 +41,11 @@ namespace Sichem
 		{
 		}
 
+		public override RecordType GetRecordType(string name)
+		{
+			return RecordType.None;
+		}
+
 		private CXChildVisitResult DumpCursor(CXCursor cursor, CXCursor parent, IntPtr data)
 		{
 			DumpCursor(cursor);
