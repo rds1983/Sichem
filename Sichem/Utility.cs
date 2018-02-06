@@ -156,9 +156,6 @@ namespace Sichem
 				case CXTypeKind.CXType_Record:
 					spelling = clang.getTypeSpelling(type).ToString();
 					break;
-				case CXTypeKind.CXType_Enum:
-					spelling = "int";
-					break;
 				case CXTypeKind.CXType_IncompleteArray:
 					sb.Append(clang.getArrayElementType(type).ToCSharpTypeString());
 					spelling = "[]";
@@ -193,10 +190,6 @@ namespace Sichem
 					break;
 				default:
 					spelling = clang.getCanonicalType(type).ToPlainTypeString();
-					if (spelling.StartsWith("enum "))
-					{
-						spelling = "int";
-					}
 					break;
 			}
 
@@ -206,6 +199,11 @@ namespace Sichem
 			}
 
 			spelling = spelling.Replace("struct ", string.Empty);
+
+			if (spelling.StartsWith("enum "))
+			{
+				spelling = "int";
+			}
 
 			if (replace && TypeNameReplacer != null)
 			{

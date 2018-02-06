@@ -6,7 +6,7 @@ using SealangSharp;
 
 namespace Sichem
 {
-	public class DumpProcessor: BaseProcessor
+	public class DumpProcessor : BaseProcessor
 	{
 		private string _currentSource;
 		private readonly Dictionary<string, StringWriter> _writers = new Dictionary<string, StringWriter>();
@@ -28,7 +28,6 @@ namespace Sichem
 				StringWriter sw;
 				if (!_writers.TryGetValue(_currentSource, out sw))
 				{
-					sw = new StringWriter();
 					_writers[_currentSource] = sw;
 				}
 

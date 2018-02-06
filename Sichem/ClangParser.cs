@@ -41,8 +41,10 @@ namespace Sichem
 			{
 				var diag = clang.getDiagnostic(tu, i);
 				var str =
-					clang.formatDiagnostic(diag, 
-					(uint) (CXDiagnosticDisplayOptions.CXDiagnostic_DisplaySourceLocation | CXDiagnosticDisplayOptions.CXDiagnostic_DisplaySourceRanges)).ToString();
+					clang.formatDiagnostic(diag,
+						(uint)
+							(CXDiagnosticDisplayOptions.CXDiagnostic_DisplaySourceLocation |
+							 CXDiagnosticDisplayOptions.CXDiagnostic_DisplaySourceRanges)).ToString();
 				Logger.LogLine(str);
 				clang.disposeDiagnostic(diag);
 			}

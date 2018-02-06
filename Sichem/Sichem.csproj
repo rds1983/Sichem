@@ -51,6 +51,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BaseConfig.cs" />
     <Compile Include="BaseProcessor.cs" />
     <Compile Include="ClangParser.cs" />
     <Compile Include="ConversionParameters.cs" />
