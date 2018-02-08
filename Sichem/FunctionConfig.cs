@@ -1,6 +1,6 @@
 ﻿namespace Sichem
 {
-	public class FunctionGenerationConfig: BaseConfig
+	public class FunctionConfig: BaseConfig
 	{
 		public string ThisName { get; set; }
 		public bool Static { get; set; }

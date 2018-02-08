@@ -9,10 +9,7 @@
 
 	public class BaseConfig
 	{
+		public SourceInfo Source { get; set; }
 		public string Name { get; set; }
-		public string Source { get; set; }
-		public string Class { get; set; }
-		public StructType StructType { get; set; }
-		public bool Skip { get; set; }
 	}
 }
