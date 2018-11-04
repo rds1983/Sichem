@@ -25,6 +25,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <OutputPath>bin\x64\Release\</OutputPath>
@@ -34,6 +35,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="ClangSharp">
@@ -51,22 +53,18 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BaseConfig.cs" />
     <Compile Include="BaseProcessor.cs" />
     <Compile Include="ClangParser.cs" />
     <Compile Include="ConversionParameters.cs" />
+    <Compile Include="CRuntime.cs" />
     <Compile Include="CursorInfo.cs" />
     <Compile Include="CursorProcessResult.cs" />
     <Compile Include="DumpProcessor.cs" />
     <Compile Include="ForwardDeclarationVisitor.cs" />
     <Compile Include="ConversionProcessor.cs" />
-    <Compile Include="FunctionConfig.cs" />
     <Compile Include="FunctionInfo.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SourceInfo.cs" />
-    <Compile Include="StructConfig.cs" />
-    <Compile Include="StructInfo.cs" />
     <Compile Include="Utility.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -78,12 +76,6 @@
       <Link>sealang.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Sichem.Framework\Sichem.Framework.csproj">
-      <Project>{9866e116-5e74-4b3f-a9f3-06f794a7d25a}</Project>
-      <Name>Sichem.Framework</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

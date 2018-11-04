@@ -1,8 +1,9 @@
 ﻿using System;
+using System.Runtime.InteropServices;
 
 namespace Sichem
 {
-	public static unsafe class CRuntime
+	internal static unsafe class CRuntime
 	{
 		public const long DBL_EXP_MASK = 0x7ff0000000000000L;
 		public const int DBL_MANT_BITS = 52;
@@ -12,12 +13,24 @@ namespace Sichem
 
 		public static void* malloc(ulong size)
 		{
-			return Operations.Malloc((long) size);
+			return malloc((long) size);
+		}
+
+		public static void* malloc(long size)
+		{
+			var ptr = Marshal.AllocHGlobal((int) size);
+
+			return ptr.ToPointer();
 		}
 
 		public static void memcpy(void* a, void* b, long size)
 		{
-			Operations.Memcpy(a, b, size);
+			var ap = (byte*) a;
+			var bp = (byte*) b;
+			for (long i = 0; i < size; ++i)
+			{
+				*ap++ = *bp++;
+			}
 		}
 
 		public static void memcpy(void* a, void* b, ulong size)
@@ -27,7 +40,22 @@ namespace Sichem
 
 		public static void memmove(void* a, void* b, long size)
 		{
-			Operations.MemMove(a, b, size);
+			void* temp = null;
+
+			try
+			{
+				temp = malloc(size);
+				memcpy(temp, b, size);
+				memcpy(a, temp, size);
+			}
+
+			finally
+			{
+				if (temp != null)
+				{
+					free(temp);
+				}
+			}
 		}
 
 		public static void memmove(void* a, void* b, ulong size)
@@ -37,7 +65,21 @@ namespace Sichem
 
 		public static int memcmp(void* a, void* b, long size)
 		{
-			return Operations.Memcmp(a, b, size);
+			var result = 0;
+			var ap = (byte*) a;
+			var bp = (byte*) b;
+			for (long i = 0; i < size; ++i)
+			{
+				if (*ap != *bp)
+				{
+					result += 1;
+				}
+
+				ap++;
+				bp++;
+			}
+
+			return result;
 		}
 
 		public static int memcmp(void* a, void* b, ulong size)
@@ -45,9 +87,18 @@ namespace Sichem
 			return memcmp(a, b, (long) size);
 		}
 
+		public static int memcmp(byte* a, byte[] b, ulong size)
+		{
+			fixed (void* bptr = b)
+			{
+				return memcmp(a, bptr, (long) size);
+			}
+		}
+
 		public static void free(void* a)
 		{
-			Operations.Free(a);
+			var ptr = new IntPtr(a);
+			Marshal.FreeHGlobal(ptr);
 		}
 
 		public static void memset(void* ptr, int value, long size)
@@ -70,14 +121,22 @@ namespace Sichem
 			return (x << y) | (x >> (32 - y));
 		}
 
-		public static void* realloc(void* ptr, long newSize)
+		public static void* realloc(void* a, long newSize)
 		{
-			return Operations.Realloc(ptr, newSize);
+			if (a == null)
+			{
+				return malloc(newSize);
+			}
+
+			var ptr = new IntPtr(a);
+			var result = Marshal.ReAllocHGlobal(ptr, new IntPtr(newSize));
+
+			return result.ToPointer();
 		}
 
-		public static void* realloc(void* ptr, ulong newSize)
+		public static void* realloc(void* a, ulong newSize)
 		{
-			return realloc(ptr, (long) newSize);
+			return realloc(a, (long) newSize);
 		}
 
 		public static int abs(int v)
@@ -111,6 +170,7 @@ namespace Sichem
 					exp = (int) ((bits & DBL_EXP_MASK) >> DBL_MANT_BITS);
 					*exponent = exp - 1022 - 54;
 				}
+
 				// Set exponent to -1 so that number is in [0.5, 1).
 				number = BitConverter.Int64BitsToDouble((bits & DBL_EXP_CLR_MASK) | 0x3fe0000000000000L);
 			}
@@ -164,25 +224,17 @@ namespace Sichem
 			return Math.Sin(value);
 		}
 
-		public static int memcmp(byte* a, byte[] b, ulong size)
-		{
-			fixed (void* bptr = b)
-			{
-				return Operations.Memcmp(a, bptr, (long) size);
-			}
-		}
-
 		public static double ldexp(double number, int exponent)
 		{
 			return number * Math.Pow(2, exponent);
 		}
 
-		public delegate int QSortComparer(void *a, void *b);
+		public delegate int QSortComparer(void* a, void* b);
 
 		private static void qsortSwap(byte* data, long size, long pos1, long pos2)
 		{
-			var a = data + size*pos1;
-			var b = data + size*pos2;
+			var a = data + size * pos1;
+			var b = data + size * pos2;
 
 			for (long k = 0; k < size; ++k)
 			{
@@ -197,10 +249,10 @@ namespace Sichem
 
 		private static long qsortPartition(byte* data, long size, QSortComparer comparer, long left, long right)
 		{
-			void* pivot = data + size*left;
+			void* pivot = data + size * left;
 			var i = left - 1;
 			var j = right + 1;
-			for(;;)
+			for (;;)
 			{
 				do
 				{
@@ -210,7 +262,7 @@ namespace Sichem
 				do
 				{
 					--j;
-				} while (comparer(data + size*j, pivot) > 0);
+				} while (comparer(data + size * j, pivot) > 0);
 
 				if (i >= j)
 				{
@@ -220,6 +272,7 @@ namespace Sichem
 				qsortSwap(data, size, i, j);
 			}
 		}
+
 
 		private static void qsortInternal(byte* data, long size, QSortComparer comparer, long left, long right)
 		{
@@ -234,7 +287,7 @@ namespace Sichem
 
 		public static void qsort(void* data, ulong count, ulong size, QSortComparer comparer)
 		{
-			qsortInternal((byte *)data, (long)size, comparer, 0, (long)count - 1);
+			qsortInternal((byte*) data, (long) size, comparer, 0, (long) count - 1);
 		}
 
 		public static double sqrt(double val)
@@ -244,7 +297,7 @@ namespace Sichem
 
 		public static double fmod(double x, double y)
 		{
-			return x%y;
+			return x % y;
 		}
 
 		public static ulong strlen(sbyte* str)

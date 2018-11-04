@@ -13,7 +13,5 @@ namespace Sichem
 		{
 			get { return _refArguments; }
 		}
-
-		public FunctionConfig Config { get; set; }
 	}
 }

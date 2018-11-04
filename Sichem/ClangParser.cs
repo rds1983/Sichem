@@ -9,7 +9,7 @@ namespace Sichem
 	{
 		public BaseProcessor Processor { get; private set; }
 
-		public Dictionary<string, string> Process(ConversionParameters parameters)
+		public void Process(ConversionParameters parameters)
 		{
 			if (parameters == null)
 			{
@@ -68,34 +68,13 @@ namespace Sichem
 
 			// Process
 			Processor = new ConversionProcessor(parameters, tu);
-			// Processor = new DumpProcessor(tu, _output);
+			// Processor = new DumpProcessor(tu, parameters.Output);
 			Processor.Run();
 
-			if (parameters.BeforeLastClosingBracket != null)
-			{
-				parameters.BeforeLastClosingBracket();
-			}
-
 			var result = new Dictionary<string, string>();
-			var outputs = Processor.Outputs;
-
-			foreach (var output in outputs)
-			{
-				output.Value.Write("\t}");
-
-				if (!string.IsNullOrEmpty(parameters.Namespace))
-				{
-					output.Value.Write("\n}\n");
-				}
-
-				result[output.Key] = output.Value.ToString();
-			}
 
 			clang.disposeTranslationUnit(tu);
 			clang.disposeIndex(createIndex);
-
-
-			return result;
 		}
 	}
 }

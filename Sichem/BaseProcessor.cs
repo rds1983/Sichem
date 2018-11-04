@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using System.IO;
+﻿using System.IO;
 using ClangSharp;
 
 namespace Sichem
@@ -10,7 +9,6 @@ namespace Sichem
 		protected int _indentLevel = 2;
 
 		protected abstract TextWriter Writer { get; }
-		public abstract Dictionary<string, StringWriter> Outputs { get; }
 
 		protected BaseProcessor(CXTranslationUnit translationUnit)
 		{
@@ -43,6 +41,18 @@ namespace Sichem
 			Writer.WriteLine(line);
 		}
 
+		public void IndentedWriteLine(string line, params object[] p)
+		{
+			if (Writer == null)
+			{
+				return;
+			}
+
+			WriteIndent();
+			Writer.WriteLine(string.Format(line, p));
+		}
+
+
 		public void IndentedWrite(string data)
 		{
 			if (Writer == null)
@@ -74,6 +84,16 @@ namespace Sichem
 			Writer.WriteLine(s);
 		}
 
+		public void WriteLine(string s, params object[] p)
+		{
+			if (Writer == null)
+			{
+				return;
+			}
+
+			Writer.WriteLine(string.Format(s, p));
+		}
+
 		public void Write(string s)
 		{
 			if (Writer == null)
@@ -83,7 +103,5 @@ namespace Sichem
 
 			Writer.Write(s);
 		}
-
-		public abstract RecordType GetRecordType(string name);
 	}
 }

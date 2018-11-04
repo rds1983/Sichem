@@ -30,36 +30,20 @@ namespace Sichem
 		private string _functionName;
 		private readonly HashSet<string> _visitedStructs = new HashSet<string>();
 
-		private readonly Dictionary<string, StructInfo> _structInfos = new Dictionary<string, StructInfo>();
 		private readonly Dictionary<string, FunctionInfo> _functionInfos = new Dictionary<string, FunctionInfo>();
 		private readonly Dictionary<string, string> _constants = new Dictionary<string, string>();
 
 		private State _state;
 		private readonly List<string> _items = new List<string>();
-		private SourceInfo _currentSource;
-		private string _thisName;
-		private readonly Dictionary<string, StringWriter> _writers = new Dictionary<string, StringWriter>();
-		private StructConfig _currentStructConfig;
-
-		public override Dictionary<string, StringWriter> Outputs
-		{
-			get { return _writers; }
-		}
+		private bool _writeStarted = false;
 
 		protected override TextWriter Writer
 		{
 			get
 			{
-				if (_currentSource == null || string.IsNullOrEmpty(_currentSource.Source))
+				if (!_writeStarted)
 				{
-					return null;
-				}
-
-				StringWriter sw;
-				if (!_writers.TryGetValue(_currentSource.Source, out sw))
-				{
-					sw = new StringWriter();
-					_writers[_currentSource.Source] = sw;
+					var sw = _parameters.Output;
 
 					if (_parameters.AddGeneratedBySichem)
 					{
@@ -76,35 +60,13 @@ namespace Sichem
 						sw.Write("namespace {0}\n{{\n\t", _parameters.Namespace);
 					}
 
-					WriteClassStart(sw, _currentSource.Class, _currentSource.StructType);
+					sw.Write("unsafe partial class {0}\n\t{{\n", _parameters.Class);
+
+					_writeStarted = true;
 				}
 
-				return sw;
+				return _parameters.Output;
 			}
-		}
-
-		private void WriteClassStart(TextWriter sw, string cls, StructType type)
-		{
-			switch (type)
-			{
-				case StructType.Struct:
-					sw.Write("[StructLayout(LayoutKind.Sequential)]\n\t");
-					sw.Write("public unsafe partial struct {0}\n\t{{\n", cls);
-					break;
-				case StructType.Class:
-					sw.Write("public unsafe partial class {0}\n\t{{\n", cls);
-					break;
-				case StructType.StaticClass:
-					sw.Write("public unsafe static partial class {0}\n\t{{\n", cls);
-					break;
-				default:
-					throw new ArgumentOutOfRangeException();
-			}
-		}
-
-		private void WriteClassStart(string cls, StructType type)
-		{
-			WriteClassStart(Writer, cls, type);
 		}
 
 		public ConversionProcessor(ConversionParameters parameters, CXTranslationUnit translationUnit) : base(translationUnit)
@@ -116,98 +78,8 @@ namespace Sichem
 
 			_parameters = parameters;
 
-			Utility.TreatStructAsClass = n =>
-			{
-				StructInfo info;
-				return _structInfos.TryGetValue(n, out info) && info.Config.StructType == StructType.Class;
-			};
-
-			Utility.TypeNameReplacer = n =>
-			{
-				StructInfo info;
-				if (_structInfos.TryGetValue(n, out info))
-				{
-					n = info.Config.Name;
-				}
-
-				return n;
-			};
-		}
-
-		public override RecordType GetRecordType(string name)
-		{
-			var result = RecordType.None;
-
-			StructInfo info;
-			_structInfos.TryGetValue(name, out info);
-			if (info != null)
-			{
-				result = info.Config.StructType == StructType.Class ? RecordType.Class : RecordType.Struct;
-			}
-			else
-			{
-				info = (from v in _structInfos.Values where v.Config.Name == name select v).FirstOrDefault();
-				if (info != null)
-				{
-					result = info.Config.StructType == StructType.Class ? RecordType.Class : RecordType.Struct;
-				}
-			}
-
-			return result;
-		}
-
-		private CXChildVisitResult VisitStructsPreprocess(CXCursor cursor, CXCursor parent, IntPtr data)
-		{
-			if (cursor.IsInSystemHeader())
-			{
-				return CXChildVisitResult.CXChildVisit_Continue;
-			}
-
-			var curKind = clang.getCursorKind(cursor);
-			switch (curKind)
-			{
-				case CXCursorKind.CXCursor_UnionDecl:
-				case CXCursorKind.CXCursor_StructDecl:
-					var structName = clang.getCursorSpelling(cursor).ToString();
-
-					// struct names can be empty, and so we visit its sibling to find the name
-					if (string.IsNullOrEmpty(structName))
-					{
-						var forwardDeclaringVisitor = new ForwardDeclarationVisitor(cursor);
-						clang.visitChildren(clang.getCursorSemanticParent(cursor), forwardDeclaringVisitor.Visit,
-							new CXClientData(IntPtr.Zero));
-						structName = clang.getCursorSpelling(forwardDeclaringVisitor.ForwardDeclarationCursor).ToString();
-
-						if (string.IsNullOrEmpty(structName))
-						{
-							structName = "_";
-						}
-					}
-
-					if (!_visitedStructs.Contains(structName))
-					{
-						Logger.Info("Prerocessing struct {0}", structName);
-
-						if (_parameters.StructSource == null)
-						{
-							Logger.Warning("Skipping because ConversionParameters.StructSource is not set.");
-						}
-
-						StructConfig sc = _parameters.StructSource(structName);
-
-						var info = new StructInfo
-						{
-							Name = structName,
-							Config = sc
-						};
-
-						_structInfos[structName] = info;
-					}
-
-					return CXChildVisitResult.CXChildVisit_Continue;
-			}
-
-			return CXChildVisitResult.CXChildVisit_Recurse;
+			Utility.TreatStructAsClass = n => _parameters.Classes.Contains(n);
+			Utility.TypeNameReplacer = n => n;
 		}
 
 		private CXChildVisitResult VisitStructs(CXCursor cursor, CXCursor parent, IntPtr data)
@@ -218,11 +90,12 @@ namespace Sichem
 			}
 
 			var curKind = clang.getCursorKind(cursor);
+			string structName = string.Empty;
 			switch (curKind)
 			{
 				case CXCursorKind.CXCursor_UnionDecl:
 				case CXCursorKind.CXCursor_StructDecl:
-					var structName = clang.getCursorSpelling(cursor).ToString();
+					structName = clang.getCursorSpelling(cursor).ToString();
 
 					// struct names can be empty, and so we visit its sibling to find the name
 					if (string.IsNullOrEmpty(structName))
@@ -241,28 +114,18 @@ namespace Sichem
 					if (!_visitedStructs.Contains(structName) && cursor.GetChildrenCount() > 0)
 					{
 						Logger.Info("Processing struct {0}", structName);
-
-						var info = _structInfos[structName];
-						_currentStructConfig = info.Config;
-
-						if (_currentStructConfig.Source == null || string.IsNullOrEmpty(_currentStructConfig.Source.Source))
+						if (_parameters.SkipStructs.Contains(structName))
 						{
+							Logger.Info("Skipped.");
 							return CXChildVisitResult.CXChildVisit_Continue;
 						}
 
-						_currentSource = _currentStructConfig.Source;
-
-						if (!string.IsNullOrEmpty(_currentStructConfig.Name))
-						{
-							WriteClassStart(_currentStructConfig.Name, _currentStructConfig.StructType);
-						}
+						IndentedWriteLine("[StructLayout(LayoutKind.Sequential)]");
+						IndentedWriteLine("public unsafe partial struct {0}\n\t{{", structName);
 
 						clang.visitChildren(cursor, VisitStructs, new CXClientData(IntPtr.Zero));
 
-						if (!string.IsNullOrEmpty(_currentStructConfig.Name))
-						{
-							IndentedWriteLine("}");
-						}
+						IndentedWriteLine("}");
 
 						WriteLine();
 
@@ -277,7 +140,8 @@ namespace Sichem
 
 					var result = "public ";
 
-					if (_currentStructConfig.StructType == StructType.Struct && expr.Info.IsArray &&
+
+					if (expr.Info.IsArray &&
 					    expr.Info.Type.GetPointeeType().kind != CXTypeKind.CXType_Record)
 					{
 						result += "fixed " + expr.Info.Type.GetPointeeType().ToCSharpTypeString() + " " + fieldName + "[" +
@@ -288,7 +152,7 @@ namespace Sichem
 						result += expr.Info.CsType + " " + fieldName;
 					}
 
-					if (_currentStructConfig.StructType != StructType.Struct)
+					if (Utility.TreatStructAsClass(structName))
 					{
 						if (expr.Info.IsPointer && !string.IsNullOrEmpty(expr.Expression))
 						{
@@ -339,21 +203,6 @@ namespace Sichem
 
 				Logger.Info("Processing enum {0}", enumName);
 
-				if (_parameters.EnumSource == null)
-				{
-					Logger.Warning("EnumSource is not set, therefore enum is skiped");
-					return CXChildVisitResult.CXChildVisit_Continue;
-				}
-
-				var config = _parameters.EnumSource(enumName);
-
-				if (config.Source == null || string.IsNullOrEmpty(config.Source.Source))
-				{
-					return CXChildVisitResult.CXChildVisit_Continue;
-				}
-
-				_currentSource = config.Source;
-
 				var i = 0;
 
 				cursor.VisitWithAction(c =>
@@ -371,7 +220,7 @@ namespace Sichem
 						}
 					}
 
-					_constants[name] = _currentSource.Class;
+					_constants[name] = _parameters.Class;
 
 					var expr = "public const int " + name + " = " + value + ";";
 
@@ -400,22 +249,13 @@ namespace Sichem
 			{
 				Logger.Info("Processing global variable {0}", spelling);
 
-				if (Parameters.GlobalVariableSource == null)
+				if (_parameters.SkipGlobalVariables.Contains(spelling))
 				{
-					Logger.Warning("GlobalVariableSource is not set, therefore skipping");
+					Logger.Info("Skipped.");
 					return CXChildVisitResult.CXChildVisit_Continue;
 				}
 
-				var config = Parameters.GlobalVariableSource(spelling);
-
-				_constants[spelling] = config.Source.Class;
-
-				if (string.IsNullOrEmpty(config.Source.Source))
-				{
-					return CXChildVisitResult.CXChildVisit_Continue;
-				}
-
-				_currentSource = config.Source;
+				_constants[spelling] = _parameters.Class;
 
 				var res = Process(cursor);
 
@@ -494,21 +334,13 @@ namespace Sichem
 
 				_functionName = clang.getCursorSpelling(cursor).ToString();
 
-				var fc = _functionInfos[_functionName].Config;
-				if (fc.Source == null || string.IsNullOrEmpty(fc.Source.Source))
+				Logger.Info("Processing function {0}", _functionName);
+
+				if (_parameters.SkipFunctions.Contains(_functionName))
 				{
+					Logger.Info("Skipped.");
 					return CXChildVisitResult.CXChildVisit_Continue;
 				}
-
-				_currentSource = fc.Source;
-
-				var info = (from f in _structInfos.Values where f.Config.Source.Class == _currentSource.Class select f).FirstOrDefault();
-				if (info != null)
-				{
-					_currentSource.StructType = info.Config.StructType;
-				}
-
-				Logger.Info("Processing function {0}", _functionName);
 
 				ProcessFunction(cursor);
 			}
@@ -698,14 +530,7 @@ namespace Sichem
 
 					if (_functionInfos.TryGetValue(result, out functionInfo))
 					{
-						if (_currentSource.Class != functionInfo.Config.Source.Class)
-						{
-							result = functionInfo.Config.Source.Class + "." + functionInfo.Config.Name;
-						}
-						else
-						{
-							result = functionInfo.Config.Name;
-						}
+						result = functionInfo.Name;
 					}
 
 					return result;
@@ -814,27 +639,6 @@ namespace Sichem
 					var functionExpr = ProcessChildByIndex(info.Cursor, 0);
 					var functionName = functionExpr.Expression.Deparentize();
 
-					FunctionInfo functionInfo;
-					if (!_functionInfos.TryGetValue(functionName, out functionInfo))
-					{
-						var fn = functionName;
-						var parts = functionName.Split('.');
-						var cls = _currentSource.Class;
-						if (parts.Length > 1)
-						{
-							cls = parts[0];
-							fn = parts[1];
-						}
-
-						functionInfo =
-							(from f in _functionInfos where f.Value.Config.Name == fn && f.Value.Config.Source.Class == cls select f.Value)
-								.FirstOrDefault();
-					}
-
-					if (functionInfo != null)
-					{
-						functionName = functionInfo.Config.Name;
-					}
 
 					// Retrieve arguments
 					var args = new List<string>();
@@ -842,13 +646,7 @@ namespace Sichem
 					{
 						var argExpr = ProcessChildByIndex(info.Cursor, i);
 
-						if (functionInfo != null && functionInfo.RefArguments.ContainsValue(i - 1))
-						{
-							argExpr.Expression = argExpr.Expression.Replace("*", "");
-							argExpr.Expression = argExpr.Expression.Replace("&", "");
-							argExpr.Expression = "ref " + argExpr.Expression;
-						}
-						else if (!argExpr.Info.IsPointer)
+						if (!argExpr.Info.IsPointer)
 						{
 							argExpr.Expression = argExpr.Expression.ApplyCast(argExpr.Info.CsType);
 						}
@@ -862,76 +660,10 @@ namespace Sichem
 
 					var sb = new StringBuilder();
 
-					if (functionInfo == null || string.IsNullOrEmpty(functionInfo.Config.Source.Class) || functionInfo.Config.Static ||
-					    functionInfo.Config.ThisArgPosition == null)
-					{
-						var cls = string.Empty;
-						if (functionInfo != null && !string.IsNullOrEmpty(functionInfo.Config.Source.Class) && functionInfo.Config.Source.Class != cls)
-						{
-							cls = functionInfo.Config.Source.Class;
-						}
+					sb.Append(functionName + "(");
+					sb.Append(string.Join(", ", args));
+					sb.Append(")");
 
-						if (_currentSource.Class != cls && !string.IsNullOrEmpty(cls))
-						{
-							sb.Append(cls + ".");
-						}
-
-						sb.Append(functionName + "(");
-						sb.Append(string.Join(", ", args));
-						sb.Append(")");
-					}
-					else
-					{
-						var argPos = functionInfo.Config.ThisArgPosition.Value;
-
-						if (args[argPos] != "this")
-						{
-							var argName = args[argPos].RemoveCasts();
-
-							bool? isPointer = null;
-							if (argName.StartsWith("*"))
-							{
-								isPointer = true;
-								argName = argName.Substring(1);
-							}
-							else if (argName.StartsWith("ref "))
-							{
-								isPointer = false;
-								argName = argName.Substring(4);
-							}
-							else if (argName.StartsWith("&"))
-							{
-								isPointer = false;
-								argName = argName.Substring(1);
-							}
-
-							if (isPointer == null)
-							{
-								isPointer = false;
-
-								var argExpr = ProcessChildByIndex(info.Cursor, argPos + 1);
-
-								if (argExpr.Info.IsPointer && argExpr.Info.RecordType == RecordType.Struct)
-								{
-									isPointer = true;
-								}
-							}
-
-							sb.Append(argName);
-
-							sb.Append(isPointer.Value ? "->" : ".");
-						}
-
-						sb.Append(functionName + "(");
-
-						args.RemoveAt(functionInfo.Config.ThisArgPosition.Value);
-
-						if (args.Count > 0)
-						{
-							sb.Append(string.Join(", ", args));
-						}
-						sb.Append(")");
-					}
 
 					return sb.ToString();
 				}
@@ -1468,23 +1200,6 @@ namespace Sichem
 
 			var expr = InternalProcess(info);
 
-			if (!string.IsNullOrEmpty(expr))
-			{
-				string s;
-				if (_constants.TryGetValue(expr, out s))
-				{
-					if (_currentSource.Class != s)
-					{
-						expr = s + "." + expr;
-					}
-				}
-			}
-
-			if (!string.IsNullOrEmpty(_thisName) && expr == _thisName)
-			{
-				expr = "this";
-			}
-
 			return new CursorProcessResult(info)
 			{
 				Expression = expr
@@ -1545,23 +1260,6 @@ namespace Sichem
 			}
 
 			_functionInfos[functionName].Signature = sb.ToString();
-
-			FunctionConfig fc;
-
-			if (Parameters.FunctionSource == null)
-			{
-				fc = new FunctionConfig
-				{
-					Name = _functionName,
-					Source = null
-				};
-			}
-			else
-			{
-				fc = Parameters.FunctionSource(_functionInfos[_functionName]);
-			}
-
-			_functionInfos[_functionName].Config = fc;
 		}
 
 		private void ProcessFunction(CXCursor cursor)
@@ -1589,17 +1287,10 @@ namespace Sichem
 
 			var sb = new StringBuilder();
 
-			IndentedWrite("public ");
-
-			_thisName = info.Config.ThisName;
-			if (info.Config.Static || string.IsNullOrEmpty(_thisName))
-			{
-				_thisName = string.Empty;
-				Write("static ");
-			}
+			IndentedWrite("public static ");
 
 			sb.Append(_returnType.ToCSharpTypeString());
-			sb.Append(" " + info.Config.Name);
+			sb.Append(" " + info.Name);
 
 			var fd = sb.ToString();
 
@@ -1614,11 +1305,6 @@ namespace Sichem
 			var first = true;
 			for (var i = (uint) 0; i < numArgTypes; ++i)
 			{
-				if (!info.Config.Static && i == info.Config.ThisArgPosition)
-				{
-					continue;
-				}
-
 				if (!first)
 				{
 					Write(", ");
@@ -1673,14 +1359,20 @@ namespace Sichem
 				new CXClientData(IntPtr.Zero));
 
 			_state = State.Structs;
-			clang.visitChildren(clang.getTranslationUnitCursor(_translationUnit), VisitStructsPreprocess,
-				new CXClientData(IntPtr.Zero));
 			clang.visitChildren(clang.getTranslationUnitCursor(_translationUnit), VisitStructs, new CXClientData(IntPtr.Zero));
 
 			_state = State.Functions;
 			clang.visitChildren(clang.getTranslationUnitCursor(_translationUnit), VisitFunctionsPreprocess,
 				new CXClientData(IntPtr.Zero));
 			clang.visitChildren(clang.getTranslationUnitCursor(_translationUnit), VisitFunctions, new CXClientData(IntPtr.Zero));
+
+			if (_parameters.BeforeLastClosingBracket != null)
+			{
+				_parameters.BeforeLastClosingBracket();
+			}
+
+			WriteLine("\t}");
+			WriteLine("}");
 		}
 	}
 }
