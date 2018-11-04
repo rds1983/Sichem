@@ -23,6 +23,8 @@ namespace Sichem
 				arr.Add("-D" + d);
 			}
 
+//			arr.Add("-I" + @"D:\Develop\Microsoft Visual Studio 12.0\VC\include");
+
 			var createIndex = clang.createIndex(0, 0);
 			CXUnsavedFile unsavedFile;
 

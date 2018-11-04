@@ -120,8 +120,15 @@ namespace Sichem
 							return CXChildVisitResult.CXChildVisit_Continue;
 						}
 
-						IndentedWriteLine("[StructLayout(LayoutKind.Sequential)]");
-						IndentedWriteLine("public unsafe partial struct {0}\n\t{{", structName);
+						if (!Utility.TreatStructAsClass(structName))
+						{
+							IndentedWriteLine("[StructLayout(LayoutKind.Sequential)]");
+							IndentedWriteLine("public unsafe partial struct {0}\n\t{{", structName);
+						}
+						else
+						{
+							IndentedWriteLine("public partial class {0}\n\t{{", structName);
+						}
 
 						clang.visitChildren(cursor, VisitStructs, new CXClientData(IntPtr.Zero));
 
