@@ -4,14 +4,16 @@ namespace Sichem
 {
 	public class FunctionInfo
 	{
-		private readonly Dictionary<string, int> _refArguments = new Dictionary<string, int>();
+		private readonly List<FunctionArgumentType> _argumentTypes = new List<FunctionArgumentType>();
 
 		public string Name { get; set; }
 		public string Signature { get; set; }
-
-		public Dictionary<string, int> RefArguments
+		public List<FunctionArgumentType> ArgumentTypes
 		{
-			get { return _refArguments; }
+			get
+			{
+				return _argumentTypes;
+			}
 		}
 	}
 }

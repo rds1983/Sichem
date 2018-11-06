@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -19,8 +20,7 @@ namespace Sichem
 
 	public static class Utility
 	{
-		public static Func<string, bool> TreatStructAsClass { get; set; }
-		public static Func<string, string> TypeNameReplacer { get; set; } 
+		public static ConversionParameters Parameters;
 
 		private static readonly Stack<Func<CXCursor, CXChildVisitResult>> _visitorActionStack =
 			new Stack<Func<CXCursor, CXChildVisitResult>>();
@@ -126,7 +126,7 @@ namespace Sichem
 
 			if (type.kind == CXTypeKind.CXType_Void)
 			{
-				return "void *";
+				return !Parameters.GenerateSafeCode ? "void *" : "FakePtr<byte>";
 			}
 
 			var sb = new StringBuilder();
@@ -138,7 +138,14 @@ namespace Sichem
 			type.ResolveRecord(out recordType, out recordName);
 			if (recordType != RecordType.Class)
 			{
-				sb.Append("*");
+				if (!Parameters.GenerateSafeCode)
+				{
+					sb.Append("*");
+				}
+				else
+				{
+					return "FakePtr<" + sb.ToString() + ">";
+				}
 			}
 
 			return sb.ToString();
@@ -175,13 +182,13 @@ namespace Sichem
 					}
 					else
 					{
-						if (TreatStructAsClass != null && TreatStructAsClass(t.ToCSharpTypeString(false, false)))
+						if (Parameters.Classes != null && Parameters.Classes.Contains(t.ToCSharpTypeString(false, false)))
 						{
 							sb.Append(t.ToCSharpTypeString() + "[]");
 						}
 						else
 						{
-							sb.Append("PinnedArray<" + t.ToCSharpTypeString() + ">");
+							sb.Append(t.ToCSharpTypeString().WrapIntoFakePtr());
 						}
 					}
 					break;
@@ -205,9 +212,9 @@ namespace Sichem
 				spelling = "int";
 			}
 
-			if (replace && TypeNameReplacer != null)
+			if (replace && Parameters.TypeNameReplacer != null)
 			{
-				spelling = TypeNameReplacer(spelling);
+				spelling = Parameters.TypeNameReplacer(spelling);
 			}
 
 			sb.Append(spelling);
@@ -257,12 +264,12 @@ namespace Sichem
 				}
 
 				name = name.Replace("struct ", string.Empty);
-				recordType = (TreatStructAsClass != null && TreatStructAsClass(name)) ? RecordType.Class : RecordType.Struct;
+				recordType = (Parameters.Classes != null && Parameters.Classes.Contains(name)) ? RecordType.Class : RecordType.Struct;
 			}
 
-			if (TypeNameReplacer != null)
+			if (Parameters.TypeNameReplacer != null)
 			{
-				name = TypeNameReplacer(name);
+				name = Parameters.TypeNameReplacer(name);
 			}
 		}
 
@@ -310,7 +317,8 @@ namespace Sichem
 
 			VisitWithAction(cursor, c =>
 			{
-				if (clang.getCursorKind(c) != kind) return CXChildVisitResult.CXChildVisit_Recurse;
+				if (clang.getCursorKind(c) != kind)
+					return CXChildVisitResult.CXChildVisit_Recurse;
 
 				_findChildResult = c;
 				return CXChildVisitResult.CXChildVisit_Break;
@@ -330,8 +338,8 @@ namespace Sichem
 			var tokens = new CXToken[numTokens];
 			for (uint i = 0; i < numTokens; ++i)
 			{
-				tokens[i] = (CXToken) Marshal.PtrToStructure(nativeTokens, typeof (CXToken));
-				nativeTokens += Marshal.SizeOf(typeof (CXToken));
+				tokens[i] = (CXToken)Marshal.PtrToStructure(nativeTokens, typeof(CXToken));
+				nativeTokens += Marshal.SizeOf(typeof(CXToken));
 
 				var name = clang.getTokenSpelling(translationUnit, tokens[i]).ToString();
 				result.Add(name);
@@ -421,27 +429,27 @@ namespace Sichem
 		public static bool IsLogicalBooleanOperator(this BinaryOperatorKind op)
 		{
 			return op == BinaryOperatorKind.LAnd || op == BinaryOperatorKind.LOr ||
-			       op == BinaryOperatorKind.EQ || op == BinaryOperatorKind.GE ||
-			       op == BinaryOperatorKind.GT || op == BinaryOperatorKind.LT;
+				   op == BinaryOperatorKind.EQ || op == BinaryOperatorKind.GE ||
+				   op == BinaryOperatorKind.GT || op == BinaryOperatorKind.LT;
 		}
 
 		public static bool IsBooleanOperator(this BinaryOperatorKind op)
 		{
 			return op == BinaryOperatorKind.LAnd || op == BinaryOperatorKind.LOr ||
-			       op == BinaryOperatorKind.EQ || op == BinaryOperatorKind.NE ||
-			       op == BinaryOperatorKind.GE || op == BinaryOperatorKind.LE ||
-			       op == BinaryOperatorKind.GT || op == BinaryOperatorKind.LT ||
-			       op == BinaryOperatorKind.And || op == BinaryOperatorKind.Or;
+				   op == BinaryOperatorKind.EQ || op == BinaryOperatorKind.NE ||
+				   op == BinaryOperatorKind.GE || op == BinaryOperatorKind.LE ||
+				   op == BinaryOperatorKind.GT || op == BinaryOperatorKind.LT ||
+				   op == BinaryOperatorKind.And || op == BinaryOperatorKind.Or;
 		}
 
 		public static bool IsAssign(this BinaryOperatorKind op)
 		{
 			return op == BinaryOperatorKind.AddAssign || op == BinaryOperatorKind.AndAssign ||
-			       op == BinaryOperatorKind.Assign || op == BinaryOperatorKind.DivAssign ||
-			       op == BinaryOperatorKind.MulAssign || op == BinaryOperatorKind.OrAssign ||
-			       op == BinaryOperatorKind.RemAssign || op == BinaryOperatorKind.ShlAssign ||
-			       op == BinaryOperatorKind.ShrAssign || op == BinaryOperatorKind.SubAssign ||
-			       op == BinaryOperatorKind.XorAssign;
+				   op == BinaryOperatorKind.Assign || op == BinaryOperatorKind.DivAssign ||
+				   op == BinaryOperatorKind.MulAssign || op == BinaryOperatorKind.OrAssign ||
+				   op == BinaryOperatorKind.RemAssign || op == BinaryOperatorKind.ShlAssign ||
+				   op == BinaryOperatorKind.ShrAssign || op == BinaryOperatorKind.SubAssign ||
+				   op == BinaryOperatorKind.XorAssign;
 		}
 
 		internal static string GetExpression(this CursorProcessResult cursorProcessResult)
@@ -505,8 +513,8 @@ namespace Sichem
 		public static bool IsArray(this CXType type)
 		{
 			return type.kind == CXTypeKind.CXType_ConstantArray ||
-			       type.kind == CXTypeKind.CXType_DependentSizedArray ||
-			       type.kind == CXTypeKind.CXType_VariableArray;
+				   type.kind == CXTypeKind.CXType_DependentSizedArray ||
+				   type.kind == CXTypeKind.CXType_VariableArray;
 		}
 
 		public static long GetArraySize(this CXType type)
@@ -688,7 +696,7 @@ namespace Sichem
 		public static string ReplaceNativeCalls(string data)
 		{
 			// Build hash of C functions
-			var type = typeof (CRuntime);
+			var type = typeof(CRuntime);
 			var methods = new HashSet<string>();
 			foreach (var f in type.GetMethods(BindingFlags.Public | BindingFlags.Static))
 			{
@@ -712,5 +720,26 @@ namespace Sichem
 
 			return data;
 		}
+
+		public static string WrapIntoFakePtr(this string s)
+		{
+			return "FakePtr<" + s + ">";
+		}
+
+		public static string UnwrapFromFakePtr(this string s)
+		{
+			if (string.IsNullOrEmpty(s))
+			{
+				return s;
+			}
+
+			if (!s.StartsWith("FakePtr<"))
+			{
+				return s;
+			}
+
+			return s.Substring(8, s.Length - 9);
+		}
+
 	}
 }

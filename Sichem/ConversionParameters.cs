@@ -3,6 +3,13 @@ using System.IO;
 
 namespace Sichem
 {
+	public enum FunctionArgumentType
+	{
+		Default,
+		Pointer,
+		Ref
+	}
+
 	public class ConversionParameters
 	{
 		public string InputPath { get; set; }
@@ -21,11 +28,15 @@ namespace Sichem
 		public string[] Classes { get; set; }
 		public string[] GlobalArrays { get; set; }
 
-		public Func<string, string, string, bool> UseRefInsteadOfPointer { get; set; }
 		public Action<CursorProcessResult> CustomGlobalVariableProcessor { get; set; }
 		public Action<string, string[]> FunctionHeaderProcessed { get; set; }
 		public Action BeforeLastClosingBracket { get; set; }
 		public Func<string, bool> TreatGlobalPointerAsArray { get; set; }
+		public bool GenerateSafeCode { get; set; }
+		public Func<string, string> TypeNameReplacer { get; set; }
+		public Func<string, string, bool> TreatStructFieldClassPointerAsArray { get; set; }
+		public Func<string, string, FunctionArgumentType> TreatFunctionArgClassPointerAsArray { get; set; }
+		public Func<string, string, bool> TreatLocalVariableClassPointerAsArray { get; set; }
 
 		public ConversionParameters()
 		{
