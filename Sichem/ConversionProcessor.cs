@@ -1416,11 +1416,6 @@ namespace Sichem
 
 			var name = spelling.FixSpecialWords();
 
-			if (_functionName == "stbtt_GetGlyphShape")
-			{
-				var k = 5;
-			}
-
 			var typeName = type.ToCSharpTypeString(true);
 
 			var t = FunctionArgumentType.Default;
