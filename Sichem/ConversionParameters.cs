@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace Sichem
@@ -10,13 +11,46 @@ namespace Sichem
 		Ref
 	}
 
+	public enum ConversionMode
+	{
+		SingleString,
+		MultipleFiles
+	}
+
+	[Flags]
+	public enum SkipFlags
+	{
+		None = 0,
+		Enums = 1,
+		GlobalVariables = 2,
+	}
+
 	public class ConversionParameters
 	{
 		public string InputPath { get; set; }
-		public TextWriter Output { get; set; }
 		public string[] Defines { get; set; }
 		public string Namespace { get; set; }
 		public string Class { get; set; }
+
+		public ConversionMode ConversionMode
+		{
+			get; set;
+		}
+
+		public string OutputPath
+		{
+			get; set;
+		}
+
+		public SkipFlags SkipFlags
+		{
+			get; set;
+		}
+
+		public Dictionary<string, string> Constants
+		{
+			get; set;
+		}
 
 		public bool IsPartial { get; set; }
 

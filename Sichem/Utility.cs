@@ -182,7 +182,8 @@ namespace Sichem
 					}
 					else
 					{
-						if (Parameters.Classes != null && Parameters.Classes.Contains(t.ToCSharpTypeString(false, false)))
+						if (!Parameters.GenerateSafeCode || 
+							(Parameters.Classes != null && Parameters.Classes.Contains(t.ToCSharpTypeString(false, false))))
 						{
 							sb.Append(t.ToCSharpTypeString() + "[]");
 						}
@@ -489,7 +490,8 @@ namespace Sichem
 
 		public static bool IsPointer(this CXType type)
 		{
-			return type.kind.IsPointer();
+			var t2 = type.Desugar();
+			return t2.kind.IsPointer();
 		}
 
 		public static bool IsStruct(this CXType type)

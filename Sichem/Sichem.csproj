@@ -55,6 +55,7 @@
   <ItemGroup>
     <Compile Include="BaseProcessor.cs" />
     <Compile Include="ClangParser.cs" />
+    <Compile Include="ConstantsUtility.cs" />
     <Compile Include="ConversionParameters.cs" />
     <Compile Include="CRuntime.cs" />
     <Compile Include="CursorInfo.cs" />
