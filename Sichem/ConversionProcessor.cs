@@ -1585,9 +1585,10 @@ namespace Sichem
 
 		private void CloseSources()
 		{
-			foreach (var pair in _sources)
+			var keys = _sources.Keys.ToArray();
+			foreach (var key in keys)
 			{
-				Source = pair.Key;
+				Source = key;
 
 				WriteLine("\t}");
 				WriteLine("}");
