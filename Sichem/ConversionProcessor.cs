@@ -147,6 +147,11 @@ namespace Sichem
 			_parameters = parameters;
 			Utility.Parameters = parameters;
 			_constants = parameters.Constants;
+
+			if (_constants == null)
+			{
+				_constants = new Dictionary<string, string>();
+			}
 		}
 
 		private CXChildVisitResult VisitStructs(CXCursor cursor, CXCursor parent, IntPtr data)
