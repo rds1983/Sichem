@@ -28,6 +28,7 @@ namespace Sichem
 		private CXCursor _functionStatement;
 		private CXType _returnType;
 		private string _structName;
+		private bool _isStruct = true;
 		private string _functionName;
 		private string _enumName;
 		private readonly HashSet<string> _visitedStructs = new HashSet<string>();
@@ -197,10 +198,12 @@ namespace Sichem
 						{
 							IndentedWriteLine("[StructLayout(LayoutKind.Sequential)]");
 							IndentedWriteLine("public struct {0}\n\t{{", structName);
+							_isStruct = true;
 						}
 						else
 						{
 							IndentedWriteLine("public class {0}\n\t{{", structName);
+							_isStruct = false;
 						}
 
 						_structName = structName;
@@ -223,7 +226,8 @@ namespace Sichem
 
 					if (!_parameters.GenerateSafeCode)
 					{
-						if (expr.Info.IsArray &&
+						if (_isStruct && 
+							expr.Info.IsArray &&
 							expr.Info.Type.GetPointeeType().kind != CXTypeKind.CXType_Record)
 						{
 							result += "fixed " + expr.Info.Type.GetPointeeType().ToCSharpTypeString() + " " + fieldName + "[" +
@@ -245,22 +249,13 @@ namespace Sichem
 						result += type + " " + fieldName;
 					}
 
-					if (Parameters.Classes != null && Parameters.Classes.Contains(_structName))
+					if (!_isStruct)
 					{
-						if (expr.Info.IsPointer && !string.IsNullOrEmpty(expr.Expression))
+						string left, right;
+						ProcessDeclaration(expr.Info, out left, out right);
+						if (!string.IsNullOrEmpty(right))
 						{
-							if (expr.Info.RecordType == RecordType.Struct || expr.Info.RecordType == RecordType.None)
-							{
-								result += " = new " + expr.Info.CsType + expr.Expression.Parentize();
-							}
-							else
-							{
-								result += " = new " + expr.Info.RecordName + "[" + expr.Expression + "]";
-							}
-						}
-						else if (!expr.Info.IsPointer && expr.Info.RecordType != RecordType.None)
-						{
-							result += " = new " + expr.Info.CsType + "()";
+							result += " = " + right;
 						}
 					}
 
@@ -612,6 +607,172 @@ namespace Sichem
 			}
 
 			return executionExpr;
+		}
+
+		private void ProcessDeclaration(CursorInfo info, out string left, out string right)
+		{
+			CursorProcessResult rvalue = null;
+			var size = info.Cursor.GetChildrenCount();
+
+			var name = info.Spelling.FixSpecialWords();
+
+			if (size > 0)
+			{
+				rvalue = ProcessPossibleChildByIndex(info.Cursor, size - 1);
+
+				if (info.Type.IsArray())
+				{
+					var arrayType = info.Type.GetPointeeType().ToCSharpTypeString();
+					if (_state == State.Functions || info.Type.GetPointeeType().IsClass())
+					{
+						info.CsType = info.Type.ToCSharpTypeString(true);
+					}
+
+					var t = info.Type.GetPointeeType().ToCSharpTypeString();
+
+					if (rvalue.Info.Kind == CXCursorKind.CXCursor_TypeRef || rvalue.Info.Kind == CXCursorKind.CXCursor_IntegerLiteral ||
+						rvalue.Info.Kind == CXCursorKind.CXCursor_BinaryOperator)
+					{
+						string sizeExp;
+						if (rvalue.Info.Kind == CXCursorKind.CXCursor_TypeRef ||
+							rvalue.Info.Kind == CXCursorKind.CXCursor_IntegerLiteral)
+						{
+							sizeExp = info.Type.GetArraySize().ToString();
+						}
+						else
+						{
+							sizeExp = rvalue.Expression;
+						}
+
+						if (_state != State.Functions || info.Type.GetPointeeType().IsClass())
+						{
+							if (_parameters.GenerateSafeCode && 
+								(_parameters.TreatGlobalPointerAsArray == null || !_parameters.TreatGlobalPointerAsArray(name)))
+							{
+								rvalue.Expression = t.WrapIntoFakePtr() + ".CreateWithSize(" + sizeExp + ")";
+							}
+							else
+							{
+								rvalue.Expression = "new " + t + "[" + sizeExp + "]";
+							}
+						}
+						else
+						{
+							if (!_parameters.GenerateSafeCode)
+							{
+								rvalue.Expression = "stackalloc " + arrayType + "[" + sizeExp + "]";
+							}
+							else
+							{
+								rvalue.Expression = arrayType.WrapIntoFakePtr() + ".CreateWithSize(" + sizeExp + ")";
+							}
+						}
+					}
+				}
+			}
+
+			string type = info.CsType;
+			if (_parameters.TreatLocalVariableClassPointerAsArray != null &&
+				_parameters.TreatLocalVariableClassPointerAsArray(_functionName, name))
+			{
+				type = type.WrapIntoFakePtr();
+			}
+
+			left = type + " " + name;
+
+			if (_state != State.Functions && _parameters.TreatGlobalPointerAsArray != null &&
+				_parameters.TreatGlobalPointerAsArray(name) && info.Type.IsArray())
+			{
+				var arrayType = info.Type.GetPointeeType().ToCSharpTypeString();
+
+				left = arrayType + "[] " + name;
+			}
+
+			right = string.Empty;
+
+			if (rvalue != null && !string.IsNullOrEmpty(rvalue.Expression))
+			{
+				if (!info.IsPointer)
+				{
+					if (rvalue.Info.Kind == CXCursorKind.CXCursor_BinaryOperator)
+					{
+						var op = sealang.cursor_getBinaryOpcode(rvalue.Info.Cursor);
+						if (op.IsLogicalBooleanOperator())
+						{
+							rvalue.Expression = rvalue.Expression + "?1:0";
+						}
+					}
+
+					right = rvalue.Expression.ApplyCast(info.CsType);
+				}
+				else
+				{
+					var t = info.Type.GetPointeeType().ToCSharpTypeString();
+					if (rvalue.Info.Kind == CXCursorKind.CXCursor_InitListExpr)
+					{
+						if (_state != State.Functions || info.Type.GetPointeeType().IsClass())
+						{
+							if (_parameters.GenerateSafeCode &&
+								(_parameters.TreatGlobalPointerAsArray == null || !_parameters.TreatGlobalPointerAsArray(name)))
+							{
+								rvalue.Expression = "new PinnedArray<" + t + ">( new " + info.Type.GetPointeeType().ToCSharpTypeString() +
+													"[] " + rvalue.Expression + ")";
+							}
+							else
+							{
+								rvalue.Expression = rvalue.Expression;
+							}
+						}
+						else
+						{
+							var arrayType = info.Type.GetPointeeType().ToCSharpTypeString();
+
+							if (!_parameters.GenerateSafeCode)
+							{
+								rvalue.Expression = "stackalloc " + arrayType + "[" + info.Type.GetArraySize() + "];\n";
+							}
+							else
+							{
+								rvalue.Expression = arrayType.WrapIntoFakePtr() + ".CreateWithSize(" + info.Type.GetArraySize() + ");\n";
+							}
+							var size2 = rvalue.Info.Cursor.GetChildrenCount();
+							for (var i = 0; i < size2; ++i)
+							{
+								var exp = ProcessChildByIndex(rvalue.Info.Cursor, i);
+
+								if (!exp.Info.IsPointer)
+								{
+									exp.Expression = exp.Expression.ApplyCast(exp.Info.CsType);
+								}
+
+								rvalue.Expression += name + "[" + i + "] = " + exp.Expression + ";\n";
+							}
+						}
+					}
+
+					if (info.IsPointer && !info.IsArray && rvalue.Info.IsArray &&
+						rvalue.Info.Type.GetPointeeType().kind.IsPrimitiveNumericType() &&
+						rvalue.Info.Kind != CXCursorKind.CXCursor_StringLiteral)
+					{
+						rvalue.Expression = "((" + info.Type.GetPointeeType().ToCSharpTypeString() + "*)" + rvalue.Expression + ")";
+					}
+
+					if (info.IsPointer && !info.IsArray && rvalue.Expression == "0")
+					{
+						rvalue.Expression = "null";
+					}
+
+					right = rvalue.Expression;
+				}
+			}
+			else if (info.RecordType != RecordType.None && !info.IsPointer)
+			{
+				right = "new " + info.CsType + "()";
+			}
+			else if (!info.IsPointer)
+			{
+				right = "0";
+			}
 		}
 
 		private string InternalProcess(CursorInfo info)
@@ -1089,165 +1250,13 @@ namespace Sichem
 				return info.Spelling.StartsWith("L") ? info.Spelling.Substring(1) : info.Spelling;
 				case CXCursorKind.CXCursor_VarDecl:
 				{
-					CursorProcessResult rvalue = null;
-					var size = info.Cursor.GetChildrenCount();
-
-					var name = info.Spelling.FixSpecialWords();
-
-					if (size > 0)
+					string left, right;
+					ProcessDeclaration(info, out left, out right);
+					var expr = left;
+					if (!string.IsNullOrEmpty(right))
 					{
-						rvalue = ProcessPossibleChildByIndex(info.Cursor, size - 1);
-
-						if (info.Type.IsArray())
-						{
-							var arrayType = info.Type.GetPointeeType().ToCSharpTypeString();
-							if (_state == State.Functions || info.Type.GetPointeeType().IsClass())
-							{
-								info.CsType = info.Type.ToCSharpTypeString(true);
-							}
-
-							var t = info.Type.GetPointeeType().ToCSharpTypeString();
-
-							if (rvalue.Info.Kind == CXCursorKind.CXCursor_TypeRef || rvalue.Info.Kind == CXCursorKind.CXCursor_IntegerLiteral ||
-								rvalue.Info.Kind == CXCursorKind.CXCursor_BinaryOperator)
-							{
-								string sizeExp;
-								if (rvalue.Info.Kind == CXCursorKind.CXCursor_TypeRef ||
-									rvalue.Info.Kind == CXCursorKind.CXCursor_IntegerLiteral)
-								{
-									sizeExp = info.Type.GetArraySize().ToString();
-								}
-								else
-								{
-									sizeExp = rvalue.Expression;
-								}
-
-								if (_state != State.Functions || info.Type.GetPointeeType().IsClass())
-								{
-									if (_parameters.TreatGlobalPointerAsArray == null || !_parameters.TreatGlobalPointerAsArray(name))
-									{
-										rvalue.Expression = t.WrapIntoFakePtr() + ".CreateWithSize(" + sizeExp + ")";
-									}
-									else
-									{
-										rvalue.Expression = "new " + t + "[" + sizeExp + "]";
-									}
-								}
-								else
-								{
-									if (!_parameters.GenerateSafeCode)
-									{
-										rvalue.Expression = "stackalloc " + arrayType + "[" + sizeExp + "]";
-									}
-									else
-									{
-										rvalue.Expression = arrayType.WrapIntoFakePtr() + ".CreateWithSize(" + sizeExp + ")";
-									}
-								}
-							}
-						}
+						expr += "=" + right;
 					}
-
-					string type = info.CsType;
-					if (_parameters.TreatLocalVariableClassPointerAsArray != null &&
-						_parameters.TreatLocalVariableClassPointerAsArray(_functionName, name))
-					{
-						type = type.WrapIntoFakePtr();
-					}
-
-					var expr = type + " " + name;
-
-					if (_state != State.Functions && _parameters.TreatGlobalPointerAsArray != null &&
-						_parameters.TreatGlobalPointerAsArray(name) && info.Type.IsArray())
-					{
-						var arrayType = info.Type.GetPointeeType().ToCSharpTypeString();
-
-						expr = arrayType + "[] " + name;
-					}
-
-					if (rvalue != null && !string.IsNullOrEmpty(rvalue.Expression))
-					{
-						if (!info.IsPointer)
-						{
-							if (rvalue.Info.Kind == CXCursorKind.CXCursor_BinaryOperator)
-							{
-								var op = sealang.cursor_getBinaryOpcode(rvalue.Info.Cursor);
-								if (op.IsLogicalBooleanOperator())
-								{
-									rvalue.Expression = rvalue.Expression + "?1:0";
-								}
-							}
-
-							expr += " = ";
-							expr += rvalue.Expression.ApplyCast(info.CsType);
-						}
-						else
-						{
-							var t = info.Type.GetPointeeType().ToCSharpTypeString();
-							if (rvalue.Info.Kind == CXCursorKind.CXCursor_InitListExpr)
-							{
-								if (_state != State.Functions || info.Type.GetPointeeType().IsClass())
-								{
-									if (_parameters.GenerateSafeCode &&
-										(_parameters.TreatGlobalPointerAsArray == null || !_parameters.TreatGlobalPointerAsArray(name)))
-									{
-										rvalue.Expression = "new PinnedArray<" + t + ">( new " + info.Type.GetPointeeType().ToCSharpTypeString() +
-															"[] " + rvalue.Expression + ")";
-									}
-									else
-									{
-										rvalue.Expression = rvalue.Expression;
-									}
-								}
-								else
-								{
-									var arrayType = info.Type.GetPointeeType().ToCSharpTypeString();
-
-									if (!_parameters.GenerateSafeCode)
-									{
-										rvalue.Expression = "stackalloc " + arrayType + "[" + info.Type.GetArraySize() + "];\n";
-									} else
-									{
-										rvalue.Expression = arrayType.WrapIntoFakePtr() + ".CreateWithSize(" + info.Type.GetArraySize() + ");\n";
-									}
-									var size2 = rvalue.Info.Cursor.GetChildrenCount();
-									for (var i = 0; i < size2; ++i)
-									{
-										var exp = ProcessChildByIndex(rvalue.Info.Cursor, i);
-
-										if (!exp.Info.IsPointer)
-										{
-											exp.Expression = exp.Expression.ApplyCast(exp.Info.CsType);
-										}
-
-										rvalue.Expression += name + "[" + i + "] = " + exp.Expression + ";\n";
-									}
-								}
-							}
-
-							if (info.IsPointer && !info.IsArray && rvalue.Info.IsArray &&
-								rvalue.Info.Type.GetPointeeType().kind.IsPrimitiveNumericType() &&
-								rvalue.Info.Kind != CXCursorKind.CXCursor_StringLiteral)
-							{
-								rvalue.Expression = "((" + info.Type.GetPointeeType().ToCSharpTypeString() + "*)" + rvalue.Expression + ")";
-							}
-
-							if (info.IsPointer && !info.IsArray && rvalue.Expression == "0")
-							{
-								rvalue.Expression = "null";
-							}
-
-							expr += " = " + rvalue.Expression;
-						}
-					}
-					else if (info.RecordType != RecordType.None && !info.IsPointer)
-					{
-						expr += " =  new " + info.CsType + "()";
-					} else if (!info.IsPointer)
-					{
-						expr += " = 0";
-					}
-
 					return expr;
 				}
 				case CXCursorKind.CXCursor_DeclStmt:
