@@ -47,11 +47,6 @@ namespace Sichem
 			get; set;
 		}
 
-		public Dictionary<string, string> Constants
-		{
-			get; set;
-		}
-
 		public bool IsPartial { get; set; }
 
 		public bool AddGeneratedBySichem { get; set; }

@@ -42,14 +42,6 @@ namespace Sichem
 		private StringWriter _stringWriter;
 		private readonly Dictionary<string, string> _sources = new Dictionary<string, string>();
 
-		public Dictionary<string, string> Constants
-		{
-			get
-			{
-				return _constants;
-			}
-		}
-
 		public StringWriter StringWriter
 		{
 			get
@@ -147,12 +139,6 @@ namespace Sichem
 
 			_parameters = parameters;
 			Utility.Parameters = parameters;
-			_constants = parameters.Constants;
-
-			if (_constants == null)
-			{
-				_constants = new Dictionary<string, string>();
-			}
 		}
 
 		private CXChildVisitResult VisitStructs(CXCursor cursor, CXCursor parent, IntPtr data)
@@ -827,11 +813,11 @@ namespace Sichem
 					var result = info.Spelling.FixSpecialWords();
 
 					string constantPrefix;
-					if (_constants.TryGetValue(result, out constantPrefix) && 
+					if (_constants.TryGetValue(result, out constantPrefix) &&
 						!string.IsNullOrEmpty(constantPrefix) &&
 						constantPrefix != _enumName)
 					{
-						result = constantPrefix + "." + result;
+						// Constant
 					}
 					else
 					{
@@ -899,7 +885,7 @@ namespace Sichem
 							switch (type)
 							{
 								case BinaryOperatorKind.Add:
-								return a.Expression + "[" + b.Expression + "]";
+									return a.Expression + "[" + b.Expression + "]";
 							}
 						}
 					}
@@ -1065,43 +1051,43 @@ namespace Sichem
 					switch (size)
 					{
 						case 1:
-						execution = ProcessChildByIndex(info.Cursor, 0);
-						break;
+							execution = ProcessChildByIndex(info.Cursor, 0);
+							break;
 						case 2:
-						start = ProcessChildByIndex(info.Cursor, 0);
-						condition = ProcessChildByIndex(info.Cursor, 1);
-						break;
+							start = ProcessChildByIndex(info.Cursor, 0);
+							condition = ProcessChildByIndex(info.Cursor, 1);
+							break;
 						case 3:
-						var expr = ProcessChildByIndex(info.Cursor, 0);
-						if (expr.Info.Kind == CXCursorKind.CXCursor_BinaryOperator &&
-							sealang.cursor_getBinaryOpcode(expr.Info.Cursor).IsBooleanOperator())
-						{
-							condition = expr;
-						}
-						else
-						{
-							start = expr;
-						}
+							var expr = ProcessChildByIndex(info.Cursor, 0);
+							if (expr.Info.Kind == CXCursorKind.CXCursor_BinaryOperator &&
+								sealang.cursor_getBinaryOpcode(expr.Info.Cursor).IsBooleanOperator())
+							{
+								condition = expr;
+							}
+							else
+							{
+								start = expr;
+							}
 
-						expr = ProcessChildByIndex(info.Cursor, 1);
-						if (expr.Info.Kind == CXCursorKind.CXCursor_BinaryOperator &&
-							sealang.cursor_getBinaryOpcode(expr.Info.Cursor).IsBooleanOperator())
-						{
-							condition = expr;
-						}
-						else
-						{
-							it = expr;
-						}
+							expr = ProcessChildByIndex(info.Cursor, 1);
+							if (expr.Info.Kind == CXCursorKind.CXCursor_BinaryOperator &&
+								sealang.cursor_getBinaryOpcode(expr.Info.Cursor).IsBooleanOperator())
+							{
+								condition = expr;
+							}
+							else
+							{
+								it = expr;
+							}
 
-						execution = ProcessChildByIndex(info.Cursor, 2);
-						break;
+							execution = ProcessChildByIndex(info.Cursor, 2);
+							break;
 						case 4:
-						start = ProcessChildByIndex(info.Cursor, 0);
-						condition = ProcessChildByIndex(info.Cursor, 1);
-						it = ProcessChildByIndex(info.Cursor, 2);
-						execution = ProcessChildByIndex(info.Cursor, 3);
-						break;
+							start = ProcessChildByIndex(info.Cursor, 0);
+							condition = ProcessChildByIndex(info.Cursor, 1);
+							it = ProcessChildByIndex(info.Cursor, 2);
+							execution = ProcessChildByIndex(info.Cursor, 3);
+							break;
 					}
 
 					var executionExpr = ReplaceCommas(execution);
@@ -1150,7 +1136,7 @@ namespace Sichem
 				}
 
 				case CXCursorKind.CXCursor_LabelRef:
-				return info.Spelling;
+					return info.Spelling;
 				case CXCursorKind.CXCursor_GotoStmt:
 				{
 					var label = ProcessChildByIndex(info.Cursor, 0);
@@ -1223,7 +1209,8 @@ namespace Sichem
 						if (!_parameters.GenerateSafeCode)
 						{
 							op = "->";
-						} else
+						}
+						else
 						{
 							op = ".Value.";
 						}
@@ -1245,9 +1232,17 @@ namespace Sichem
 					return tokens[0];
 				}
 				case CXCursorKind.CXCursor_CharacterLiteral:
-				return "'" + sealang.cursor_getLiteralString(info.Cursor) + "'";
+				{
+
+					var r = sealang.cursor_getLiteralString(info.Cursor).ToString();
+					if (string.IsNullOrEmpty(r))
+					{
+						r = @"\0";
+					}
+					return "'" + r + "'";
+				}
 				case CXCursorKind.CXCursor_StringLiteral:
-				return info.Spelling.StartsWith("L") ? info.Spelling.Substring(1) : info.Spelling;
+					return info.Spelling.StartsWith("L") ? info.Spelling.Substring(1) : info.Spelling;
 				case CXCursorKind.CXCursor_VarDecl:
 				{
 					string left, right;
@@ -1255,7 +1250,7 @@ namespace Sichem
 					var expr = left;
 					if (!string.IsNullOrEmpty(right))
 					{
-						expr += "=" + right;
+						expr += " = " + right;
 					}
 					return expr;
 				}
@@ -1340,9 +1335,9 @@ namespace Sichem
 				}
 
 				case CXCursorKind.CXCursor_BreakStmt:
-				return "break";
+					return "break";
 				case CXCursorKind.CXCursor_ContinueStmt:
-				return "continue";
+					return "continue";
 
 				case CXCursorKind.CXCursor_CStyleCastExpr:
 				{

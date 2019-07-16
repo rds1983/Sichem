@@ -15,11 +15,6 @@ namespace Sichem
 			get; set;
 		}
 
-		public Dictionary<string, string> Constants
-		{
-			get; set;
-		}
-
 		public void Process(ConversionParameters parameters)
 		{
 			if (parameters == null)
@@ -93,11 +88,9 @@ namespace Sichem
 			{
 				StringResult = cw.StringWriter.ToString();
 			}
-			Constants = cw.Constants;
 
 			clang.disposeTranslationUnit(tu);
 			clang.disposeIndex(createIndex);
-
 		}
 	}
 }
