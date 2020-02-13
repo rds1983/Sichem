@@ -57,6 +57,7 @@
     <Compile Include="ClangParser.cs" />
     <Compile Include="ConstantsUtility.cs" />
     <Compile Include="ConversionParameters.cs" />
+    <Compile Include="ConversionResult.cs" />
     <Compile Include="CRuntime.cs" />
     <Compile Include="CursorInfo.cs" />
     <Compile Include="CursorProcessResult.cs" />

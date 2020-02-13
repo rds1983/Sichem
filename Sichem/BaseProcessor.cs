@@ -15,8 +15,6 @@ namespace Sichem
 			_translationUnit = translationUnit;
 		}
 
-		public abstract void Run();
-
 		public void WriteIndent()
 		{
 			if (Writer == null)

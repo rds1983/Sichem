@@ -71,7 +71,7 @@ namespace Sichem
 			_indentLevel--;
 		}
 
-		public override void Run()
+		public void Run()
 		{
 			clang.visitChildren(clang.getTranslationUnitCursor(_translationUnit), DumpCursor, new CXClientData(IntPtr.Zero));
 		}

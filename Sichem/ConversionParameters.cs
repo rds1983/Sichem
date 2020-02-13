@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
 
 namespace Sichem
 {
@@ -9,12 +7,6 @@ namespace Sichem
 		Default,
 		Pointer,
 		Ref
-	}
-
-	public enum ConversionMode
-	{
-		SingleString,
-		MultipleFiles
 	}
 
 	[Flags]
@@ -31,11 +23,6 @@ namespace Sichem
 		public string[] Defines { get; set; }
 		public string Namespace { get; set; }
 		public string Class { get; set; }
-
-		public ConversionMode ConversionMode
-		{
-			get; set;
-		}
 
 		public string OutputPath
 		{

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Text;
 using ClangSharp;
 
@@ -8,14 +7,7 @@ namespace Sichem
 {
 	public class ClangParser
 	{
-		public BaseProcessor Processor { get; private set; }
-
-		public string StringResult
-		{
-			get; set;
-		}
-
-		public void Process(ConversionParameters parameters)
+		public ConversionResult Process(ConversionParameters parameters)
 		{
 			if (parameters == null)
 			{
@@ -76,21 +68,17 @@ namespace Sichem
 
 			// Process
 			var cw = new ConversionProcessor(parameters, tu);
-			Processor = cw;
-			Processor.Run();
+			var result = cw.Run();
 /*			using (var tw = new StreamWriter(Path.Combine(parameters.OutputPath, "dump.txt")))
 			{
 				Processor = new DumpProcessor(tu, tw);
 				Processor.Run();
 			}*/
 
-			if (cw.StringWriter != null)
-			{
-				StringResult = cw.StringWriter.ToString();
-			}
-
 			clang.disposeTranslationUnit(tu);
 			clang.disposeIndex(createIndex);
+
+			return result;
 		}
 	}
 }
