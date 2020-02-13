@@ -1,7 +1,7 @@
 # Sichem
 C to C# Code Converter
 
-It is used in the following projects('generation' subfolder contains actual C# code generator app that uses Sichem):
+It is used in the following projects(see 'generation' subfolder that contains actual Sichem utilizing app):
 
 https://github.com/StbSharp/StbImageSharp
 
