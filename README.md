@@ -13,4 +13,4 @@ https://github.com/StbSharp/StbVorbisSharp
 
 https://github.com/rds1983/NvgSharp
 
-If you want some C project to be converted in C#, feel free to create the corresponding issue.
+If you want some C project converted to C#, feel free to create the corresponding issue.
