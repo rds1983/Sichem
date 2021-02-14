@@ -126,7 +126,7 @@ namespace Sichem
 
 			if (type.kind == CXTypeKind.CXType_Void)
 			{
-				return !Parameters.GenerateSafeCode ? "void *" : "FakePtr<byte>";
+				return "void *";
 			}
 
 			var sb = new StringBuilder();
@@ -138,14 +138,7 @@ namespace Sichem
 			type.ResolveRecord(out recordType, out recordName);
 			if (recordType != RecordType.Class)
 			{
-				if (!Parameters.GenerateSafeCode)
-				{
-					sb.Append("*");
-				}
-				else
-				{
-					return "FakePtr<" + sb.ToString() + ">";
-				}
+				sb.Append("*");
 			}
 
 			return sb.ToString();
@@ -182,15 +175,7 @@ namespace Sichem
 					}
 					else
 					{
-						if (!Parameters.GenerateSafeCode || 
-							(Parameters.Classes != null && Parameters.Classes.Contains(t.ToCSharpTypeString(false, false))))
-						{
-							sb.Append(t.ToCSharpTypeString() + "[]");
-						}
-						else
-						{
-							sb.Append(t.ToCSharpTypeString().WrapIntoFakePtr());
-						}
+						sb.Append(t.ToCSharpTypeString() + "[]");
 					}
 					break;
 				case CXTypeKind.CXType_Pointer:
@@ -211,11 +196,6 @@ namespace Sichem
 			if (spelling.StartsWith("enum "))
 			{
 				spelling = "int";
-			}
-
-			if (replace && Parameters.TypeNameReplacer != null)
-			{
-				spelling = Parameters.TypeNameReplacer(spelling);
 			}
 
 			sb.Append(spelling);
@@ -266,11 +246,6 @@ namespace Sichem
 
 				name = name.Replace("struct ", string.Empty);
 				recordType = (Parameters.Classes != null && Parameters.Classes.Contains(name)) ? RecordType.Class : RecordType.Struct;
-			}
-
-			if (Parameters.TypeNameReplacer != null)
-			{
-				name = Parameters.TypeNameReplacer(name);
 			}
 		}
 
@@ -359,6 +334,23 @@ namespace Sichem
 			}
 
 			if (!trimmed.EndsWith(";") && !trimmed.EndsWith("}"))
+			{
+				return statement + ";";
+			}
+
+			return statement;
+		}
+
+		public static string EnsureStatementEndWithSemicolon(this string statement)
+		{
+			var trimmed = statement.Trim();
+
+			if (string.IsNullOrEmpty(trimmed))
+			{
+				return trimmed;
+			}
+
+			if (!trimmed.EndsWith(";"))
 			{
 				return statement + ";";
 			}
@@ -670,6 +662,18 @@ namespace Sichem
 			return "{" + expr + "}";
 		}
 
+		public static string Decurlize(this string expr)
+		{
+			expr = expr.Trim();
+
+			if (expr.StartsWith("{") && expr.EndsWith("}"))
+			{
+				return expr.Substring(1, expr.Length - 2).Trim();
+			}
+
+			return expr;
+		}
+
 		public static bool TryParseNumber(this string num, out int i)
 		{
 			var result = false;
@@ -722,26 +726,5 @@ namespace Sichem
 
 			return data;
 		}
-
-		public static string WrapIntoFakePtr(this string s)
-		{
-			return "FakePtr<" + s + ">";
-		}
-
-		public static string UnwrapFromFakePtr(this string s)
-		{
-			if (string.IsNullOrEmpty(s))
-			{
-				return s;
-			}
-
-			if (!s.StartsWith("FakePtr<"))
-			{
-				return s;
-			}
-
-			return s.Substring(8, s.Length - 9);
-		}
-
 	}
 }

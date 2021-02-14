@@ -9,27 +9,12 @@ namespace Sichem
 		Ref
 	}
 
-	[Flags]
-	public enum SkipFlags
-	{
-		None = 0,
-		Enums = 1,
-		GlobalVariables = 2,
-	}
-
 	public class ConversionParameters
 	{
 		public string InputPath { get; set; }
 		public string[] Defines { get; set; }
-		public string Namespace { get; set; }
-		public string Class { get; set; }
 
 		public string OutputPath
-		{
-			get; set;
-		}
-
-		public SkipFlags SkipFlags
 		{
 			get; set;
 		}
@@ -43,16 +28,6 @@ namespace Sichem
 		public string[] SkipFunctions { get; set; }
 		public string[] Classes { get; set; }
 		public string[] GlobalArrays { get; set; }
-
-		public Action<CursorProcessResult> CustomGlobalVariableProcessor { get; set; }
-		public Action<string, string[]> FunctionHeaderProcessed { get; set; }
-		public Action BeforeLastClosingBracket { get; set; }
-		public Func<string, bool> TreatGlobalPointerAsArray { get; set; }
-		public bool GenerateSafeCode { get; set; }
-		public Func<string, string> TypeNameReplacer { get; set; }
-		public Func<string, string, bool> TreatStructFieldClassPointerAsArray { get; set; }
-		public Func<string, string, FunctionArgumentType> TreatFunctionArgClassPointerAsArray { get; set; }
-		public Func<string, string, bool> TreatLocalVariableClassPointerAsArray { get; set; }
 
 		public ConversionParameters()
 		{

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using ClangSharp;
 
@@ -69,10 +70,10 @@ namespace Sichem
 			// Process
 			var cw = new ConversionProcessor(parameters, tu);
 			var result = cw.Run();
-/*			using (var tw = new StreamWriter(Path.Combine(parameters.OutputPath, "dump.txt")))
+/*			using (var tw = new StreamWriter("dump.txt"))
 			{
-				Processor = new DumpProcessor(tu, tw);
-				Processor.Run();
+				var dump = new DumpProcessor(tu, tw);
+				dump.Run();
 			}*/
 
 			clang.disposeTranslationUnit(tu);
