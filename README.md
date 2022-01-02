@@ -1,3 +1,5 @@
+**IMPORTANT:** The project had been superceded by [Hebron](https://github.com/HebronFramework/Hebron)
+
 # Sichem
 C to C# Code Converter
 
